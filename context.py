@@ -10,7 +10,9 @@ class Context(object):
         self.background = None
         self.group = None
         self.pc = None
+        self.enemies = None
         self.world = None
+        self.random = None
     
     @classmethod
     def getContext(self):

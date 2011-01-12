@@ -68,3 +68,19 @@ class Human(Actor):
     """A typical Terran."""
     def __init__(self):
         self.symbol='@'
+
+class Moogle(Actor):
+    """A vicious and hungry creature without much intelligence or sense of direction."""
+    def __init__(self):
+        self.symbol='m'
+    
+    def move(self):
+        choice=ctx.random.randint(0,3)
+        if(choice==0):
+            self.moveN()
+        elif(choice==1):
+            self.moveS()
+        elif(choice==2):
+            self.moveW()
+        elif(choice==3):
+            self.moveE()
