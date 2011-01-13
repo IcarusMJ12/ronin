@@ -36,7 +36,7 @@ def mainloop():
 def init():
     ctx=Context.getContext()
     ctx.FONT_SIZE = 24
-    ctx.font = pygame.font.Font('Courier New.ttf', ctx.FONT_SIZE)
+    ctx.font = pygame.font.Font('Andale Mono.ttf', ctx.FONT_SIZE)
     (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = ctx.font.size('@')
     ctx.screen = pygame.display.set_mode((25*ctx.CELL_WIDTH,25*ctx.CELL_HEIGHT))
     ctx.screen.fill((0,0,0))
