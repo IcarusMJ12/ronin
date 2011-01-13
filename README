@@ -1,0 +1,6 @@
+You need python (tested with 2.6+) and pygame installed.
+
+Run ./trapped.py
+
+Currently only the original roguelike keys are supported (hjkl) and there's no diagonal movement.
+Walk into a mogwai to kill it; if it walks into you you die and the game terminates.  Ctrl+q quits the game.
