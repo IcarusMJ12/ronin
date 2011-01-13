@@ -6,19 +6,6 @@ from grids import Location, Tile, SquareGrid
 from objects import *
 from random import Random
 
-class MovableSprite(pygame.sprite.Sprite):
-    def moveUp(self):
-        self.rect=self.rect.move(0,-1*ctx.FONT_SIZE)
-    
-    def moveDown(self):
-        self.rect=self.rect.move(0,1*ctx.FONT_SIZE)
-    
-    def moveLeft(self):
-        self.rect=self.rect.move(-1*ctx.FONT_SIZE,0)
-    
-    def moveRight(self):
-        self.rect=self.rect.move(1*ctx.FONT_SIZE,0)
-    
 def mainloop():
     ctx=Context.getContext()
     event = None
@@ -42,11 +29,16 @@ def mainloop():
         if(event.key==K_q and (event.mod==KMOD_LCTRL or event.mod==KMOD_RCTRL)):
             pygame.display.quit()
             return
+        if not len(ctx.enemies):
+            print "You have slain all the vicious buggers!"
+            return
 
 def init():
     ctx=Context.getContext()
-    ctx.FONT_SIZE = 18
-    ctx.font = pygame.font.Font(None, ctx.FONT_SIZE)
+    ctx.FONT_SIZE = 24
+    ctx.CELL_HEIGHT = ctx.FONT_SIZE
+    ctx.CELL_WIDTH = ctx.FONT_SIZE*2/3
+    ctx.font = pygame.font.Font('Courier New.ttf', ctx.FONT_SIZE)
     ctx.screen = pygame.display.set_mode((800,600))
     ctx.screen.fill((0,0,0))
     ctx.group = pygame.sprite.RenderClear()
@@ -69,7 +61,7 @@ if __name__ == '__main__':
     for i in xrange(23):
         ctx.world.getTile(i+1,0).terrain=Wall()
         ctx.world.getTile(i+1,24).terrain=Wall()
-    ctx.pc=Human()
+    ctx.pc=PC()
     tile=ctx.world.getTile(13,13)
     tile.actor=ctx.pc
     ctx.pc.parent=tile
@@ -86,7 +78,7 @@ if __name__ == '__main__':
             if ctx.random.randint(0,10)==10:
                 try:
                     tile=ctx.world.getTile(i+1,j+1)
-                    tile.actor=Moogle()
+                    tile.actor=Mogwai()
                     tile.actor.parent=tile
                     ctx.enemies.append(tile.actor)
                 except:

@@ -1,6 +1,8 @@
 import pygame
 import copy
 from context import Context as Context
+from exceptions import NotImplementedError
+import sys
 
 ctx=Context.getContext()
 
@@ -36,8 +38,13 @@ class Actor(BaseObject):
             tile.actor=self
             self.parent.actor=None
             self.parent=tile
+            return True
         else:
-            print "Thud! You bump into something."
+            self.moveBlocked(tile)
+            return False
+    
+    def moveBlocked(self,tile):
+        raise NotImplementedError()
     
     def moveN(self):
         self.moveToOffset(0,-1)
@@ -69,10 +76,24 @@ class Human(Actor):
     def __init__(self):
         self.symbol='@'
 
-class Moogle(Actor):
-    """A vicious and hungry creature without much intelligence or sense of direction."""
+class PC(Human):
+    """The man himself."""
+    def moveBlocked(self,tile):
+        if(tile.actor and isinstance(tile.actor,Mogwai)):
+                print "You hit the mogwai and slay it."
+                ctx.enemies.remove(tile.actor)
+                tile.actor=None
+
+class Mogwai(Actor):
+    """A vicious and hungry demon without much intelligence or sense of direction."""
     def __init__(self):
         self.symbol='m'
+    
+    def moveBlocked(self,tile):
+        if(tile.actor==ctx.pc):
+            print "A mogwai hits you.  You die!"
+            pygame.display.quit()
+            sys.exit(0)
     
     def move(self):
         choice=ctx.random.randint(0,3)

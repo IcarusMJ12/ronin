@@ -5,6 +5,8 @@ class Context(object):
 
     def __init__(self):
         self.FONT_SIZE = None
+        self.CELL_WIDTH = None
+        self.CELL_HEIGHT = None
         self.font = None
         self.screen = None
         self.background = None

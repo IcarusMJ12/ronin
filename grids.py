@@ -20,7 +20,7 @@ class Tile(pygame.sprite.DirtySprite):
         self._terrain=None
         self.items=None
         self.location=location
-        self.rect=pygame.sprite.Rect((location.x*ctx.FONT_SIZE, location.y*ctx.FONT_SIZE),(ctx.FONT_SIZE,ctx.FONT_SIZE))
+        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
         self.image=None
         self.setTerrain(Floor())
         self.dirty=1
