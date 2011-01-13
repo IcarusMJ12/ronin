@@ -2,6 +2,8 @@ import pygame
 from objects import *
 from context import Context as Context
 
+ctx=Context.getContext()
+
 class Location(object):
     def __init__(self, level, x, y):
         self.level=level
@@ -13,7 +15,6 @@ class Location(object):
 
 class Tile(pygame.sprite.DirtySprite):
     def __init__(self,location):
-        ctx=Context.getContext()
         pygame.sprite.DirtySprite.__init__(self)
         self.ctx=ctx
         self._actor=None

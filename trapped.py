@@ -36,10 +36,9 @@ def mainloop():
 def init():
     ctx=Context.getContext()
     ctx.FONT_SIZE = 24
-    ctx.CELL_HEIGHT = ctx.FONT_SIZE
-    ctx.CELL_WIDTH = ctx.FONT_SIZE*2/3
     ctx.font = pygame.font.Font('Courier New.ttf', ctx.FONT_SIZE)
-    ctx.screen = pygame.display.set_mode((800,600))
+    (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = ctx.font.size('@')
+    ctx.screen = pygame.display.set_mode((25*ctx.CELL_WIDTH,25*ctx.CELL_HEIGHT))
     ctx.screen.fill((0,0,0))
     ctx.group = pygame.sprite.RenderClear()
     ctx.background = ctx.screen.copy()
