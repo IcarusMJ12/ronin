@@ -3,6 +3,7 @@ import copy
 from context import Context as Context
 from exceptions import NotImplementedError
 import sys
+import logging
 
 ctx=Context.getContext()
 
@@ -68,7 +69,7 @@ class Actor(BaseObject):
         loc=copy.deepcopy(src_tile.location)
         loc.x+=x
         loc.y+=y
-        print loc
+        logging.debug(loc)
         self.moveToLocation(loc)
 
 class Human(Actor):

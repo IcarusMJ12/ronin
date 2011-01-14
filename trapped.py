@@ -5,13 +5,14 @@ from context import Context as Context
 from grids import Location, Tile, SquareGrid
 from objects import *
 from random import Random
+import logging
 
 def mainloop():
     ctx=Context.getContext()
     event = None
     while True:
         event = pygame.event.wait()
-        print event
+        logging.debug(event)
         if(event.mod==0):
             if(event.key==K_j):
                 ctx.pc.moveS()
@@ -43,6 +44,9 @@ def init():
     ctx.group = pygame.sprite.RenderClear()
     ctx.background = ctx.screen.copy()
     ctx.random = Random(0)
+
+    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
 if __name__ == '__main__':
     pygame.init()
@@ -83,11 +87,6 @@ if __name__ == '__main__':
                 except:
                     pass
     ctx.group.add(*ctx.world.getTiles())
-    clean_count=0
-    for i in ctx.world.getTiles():
-        if i.dirty==0:
-            clean_count+=1
-    print clean_count
     ctx.group.draw(ctx.screen)
     pygame.display.update()
     mainloop()
