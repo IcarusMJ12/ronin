@@ -15,13 +15,12 @@ class Location(object):
 
 class Tile(pygame.sprite.DirtySprite):
     def __init__(self,location):
-        pygame.sprite.DirtySprite.__init__(self)
-        self.ctx=ctx
+        super(Tile, self).__init__()
         self._actor=None
         self._terrain=None
         self.items=None
         self.location=location
-        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
+        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT+ctx.GRID_OFFSET),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
         self.image=None
         self.setTerrain(Floor())
         self.dirty=1
@@ -31,10 +30,10 @@ class Tile(pygame.sprite.DirtySprite):
             assert(isinstance(val,Actor))
         self._actor=val
         if(val):
-            self.image=self.ctx.font.render(self.actor.symbol,True,(255,255,255))
+            self.image=ctx.font.render(self.actor.symbol,True,(255,255,255))
             self.dirty=1
         elif(self.terrain):
-            self.image=self.ctx.font.render(self.terrain.symbol,True,(255,255,255))
+            self.image=ctx.font.render(self.terrain.symbol,True,(255,255,255))
             self.dirty=1
     
     def getActor(self):
@@ -46,7 +45,7 @@ class Tile(pygame.sprite.DirtySprite):
         assert(isinstance(val,Terrain))
         if(self.actor is None or val.isPassableBy(self.actor)):
             self._terrain=val
-            self.image=self.ctx.font.render(self.terrain.symbol,True,(255,255,255))
+            self.image=ctx.font.render(self.terrain.symbol,True,(255,255,255))
             self.dirty=1
         else:
             raise 'Attempted to set terrain to a non-passable type while an actor was present'

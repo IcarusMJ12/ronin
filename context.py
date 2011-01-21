@@ -1,5 +1,3 @@
-import pygame
-
 class Context(object):
     ctx=None
 
@@ -7,6 +5,9 @@ class Context(object):
         self.FONT_SIZE = None
         self.CELL_WIDTH = None
         self.CELL_HEIGHT = None
+        self.MESSAGE_BUFFER_HEIGHT = None
+        self.GRID_OFFSET = None
+        self.SCREEN_WIDTH = None
         self.font = None
         self.screen = None
         self.background = None

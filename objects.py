@@ -4,6 +4,7 @@ from context import Context as Context
 from exceptions import NotImplementedError
 import sys
 import logging
+from messages import MessageBuffer
 
 ctx=Context.getContext()
 
@@ -23,13 +24,13 @@ class Terrain(BaseObject):
 class Floor(Terrain):
     """A floor that can be walked on."""
     def __init__(self):
-        Terrain.__init__(self,Actor)
+        super(Floor, self).__init__(Actor)
         self.symbol='.'
 
 class Wall(Terrain):
     """An impassable wall, that may, however, be mined."""
     def __init__(self):
-        Terrain.__init__(self,None)
+        super(Wall, self).__init__(None)
         self.symbol='#'
 
 class Actor(BaseObject):
@@ -48,20 +49,20 @@ class Actor(BaseObject):
         raise NotImplementedError()
     
     def moveN(self):
-        self.moveToOffset(0,-1)
+        return self.moveToOffset(0,-1)
     
     def moveS(self):
-        self.moveToOffset(0,1)
+        return self.moveToOffset(0,1)
 
     def moveW(self):
-        self.moveToOffset(-1,0)
+        return self.moveToOffset(-1,0)
 
     def moveE(self):
-        self.moveToOffset(1,0)
+        return self.moveToOffset(1,0)
 
     def moveToLocation(self,loc):
         dst_tile=ctx.world.getTile(loc.x,loc.y)
-        self.moveToTile(dst_tile)
+        return self.moveToTile(dst_tile)
     
     def moveToOffset(self,x,y):
         src_tile=self.parent
@@ -70,7 +71,7 @@ class Actor(BaseObject):
         loc.x+=x
         loc.y+=y
         logging.debug(loc)
-        self.moveToLocation(loc)
+        return self.moveToLocation(loc)
 
 class Human(Actor):
     """A typical Terran."""
@@ -81,7 +82,7 @@ class PC(Human):
     """The man himself."""
     def moveBlocked(self,tile):
         if(tile.actor and isinstance(tile.actor,Mogwai)):
-                print "You hit the mogwai and slay it."
+                ctx.message_buffer.addMessage("You hit the mogwai and slay it.")
                 ctx.enemies.remove(tile.actor)
                 tile.actor=None
 
