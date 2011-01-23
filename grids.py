@@ -1,4 +1,5 @@
 import pygame
+import abc
 from objects import *
 from context import Context as Context
 
@@ -14,13 +15,15 @@ class Location(object):
         return "<Location(level:"+self.level.__repr__()+" x:"+self.x.__repr__()+" y:"+self.y.__repr__()+")>"
 
 class Tile(pygame.sprite.DirtySprite):
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
     def __init__(self,location):
         super(Tile, self).__init__()
         self._actor=None
         self._terrain=None
         self.items=None
         self.location=location
-        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT+ctx.GRID_OFFSET),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
         self.image=None
         self.setTerrain(Floor())
         self.dirty=1
@@ -62,12 +65,19 @@ class Tile(pygame.sprite.DirtySprite):
             return True
         return False
 
+class SquareTile(Tile):
+    def __init__(self, location):
+        super(SquareTile, self).__init__(location)
+        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT+ctx.GRID_OFFSET),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
+
 class Grid(object):
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
     def __init__(self,level,width,height):
         self.level=level
         self.width=width
         self.height=height
-        self.grid=[[Tile(Location(level,j,i)) for i in xrange(width)] for j in xrange(height)]
 
     def getTile(self,x,y):
         return self.grid[x][y]
@@ -76,4 +86,6 @@ class Grid(object):
         return [item for sublist in self.grid for item in sublist]
 
 class SquareGrid(Grid):
-    pass
+    def __init__(self,level,width,height):
+        super(SquareGrid, self).__init__(level, width, height)
+        self.grid=[[SquareTile(Location(level,j,i)) for i in xrange(width)] for j in xrange(height)]
