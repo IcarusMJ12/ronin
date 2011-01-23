@@ -11,22 +11,33 @@ import ui
 import monofont
 import sys
 
+def quit():
+    pygame.display.quit()
+    sys.exit(0)
 
 def mainloop():
     ctx=Context.getContext()
     event = None
+    ret = None
     while True:
         event = pygame.event.wait()
         logging.debug(event)
-        ctx.message_buffer.flush()
+        if ret is not None:
+            logging.info('flushing')
+            ctx.message_buffer.flush()
         ret=ctx.screen_manager.current.handlers.handle(event)
+        logging.info(ret)
         if not len(ctx.enemies):
-            print "You have slain all the vicious buggers!"
+            ctx.message_buffer.addMessage("You have slain all the vicious buggers!")
+            victory_handler=InputHandler()
+            victory_handler.addFunction(ctx.quit, K_RETURN)
+            victory_handler.addFunction(ctx.quit, K_SPACE)
+            ctx.screen_manager.current.handlers.push(victory_handler)
             return
         if ret is not None:
             for m in ctx.enemies:
                 m.move()
-        ctx.screen_manager.current.view.update()
+            ctx.screen_manager.current.view.update()
 
 def init():
     #setup logger
@@ -41,6 +52,7 @@ def init():
     (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = (ctx.font.w, ctx.font.h)
     ctx.GRID_OFFSET = ctx.CELL_HEIGHT*(ctx.MESSAGE_BUFFER_HEIGHT+1)
     ctx.SCREEN_WIDTH = 25*ctx.CELL_WIDTH
+    ctx.quit=quit
 
     #initialize display
     ctx.screen = pygame.display.set_mode((25*ctx.CELL_WIDTH,25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET))
@@ -61,6 +73,7 @@ def init():
     handler.addFunction(ctx.pc.moveN, K_k)
     handler.addFunction(ctx.pc.moveW, K_h)
     handler.addFunction(ctx.pc.moveE, K_l)
+    handler.addFunction(ctx.pc.idle, K_PERIOD)
     handler.addFunction(exit, K_q, (KMOD_CTRL,))
 
     #setup screen manager

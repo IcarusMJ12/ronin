@@ -1,10 +1,12 @@
 import pygame
+from pygame.locals import *
 import copy
 from context import Context as Context
 from exceptions import NotImplementedError
 import sys
 import logging
 from messages import MessageBuffer
+from ui import InputHandler
 
 ctx=Context.getContext()
 
@@ -73,6 +75,9 @@ class Actor(BaseObject):
         logging.debug(loc)
         return self.moveToLocation(loc)
 
+    def idle(self):
+        return False
+
 class Human(Actor):
     """A typical Terran."""
     def __init__(self):
@@ -82,9 +87,11 @@ class PC(Human):
     """The man himself."""
     def moveBlocked(self,tile):
         if(tile.actor and isinstance(tile.actor,Mogwai)):
-                ctx.message_buffer.addMessage("You hit the mogwai and slay it.")
-                ctx.enemies.remove(tile.actor)
-                tile.actor=None
+            ctx.message_buffer.addMessage("You hit the mogwai and slay it.")
+            ctx.enemies.remove(tile.actor)
+            tile.actor=None
+        else:
+            ctx.message_buffer.addMessage("Thud! You run into a wall.")
 
 class Mogwai(Actor):
     """A vicious and hungry demon without much intelligence or sense of direction."""
@@ -93,9 +100,11 @@ class Mogwai(Actor):
     
     def moveBlocked(self,tile):
         if(tile.actor==ctx.pc):
-            print "A mogwai hits you.  You die!"
-            pygame.display.quit()
-            sys.exit(0)
+            ctx.message_buffer.addMessage("A mogwai hits you.  You die! [Enter or Space to quit]")
+            death_handler=InputHandler()
+            death_handler.addFunction(ctx.quit, K_RETURN)
+            death_handler.addFunction(ctx.quit, K_SPACE)
+            ctx.screen_manager.current.handlers.push(death_handler)
     
     def move(self):
         choice=ctx.random.randint(0,3)

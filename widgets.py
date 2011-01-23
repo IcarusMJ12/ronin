@@ -14,7 +14,6 @@ class TextLine(pygame.sprite.DirtySprite):
         self.dirty=0
     
     def render(self, text, color=(255,255,255), bgcolor=None):
-        logging.info(id(self).__repr__()+' rendering '+self._text+' '+text)
         if self._text!=text:
             if bgcolor:
                 self.image=self._font.render(text, True, color, bgcolor)
@@ -79,8 +78,11 @@ class TextBlock(object):
         overflow=text
         for line in self._lines:
             overflow=line.render(overflow, color, bgcolor)
-        if overflow and self._more:
-            self._more.render()
+        if self._more:
+            if overflow:
+                self._more.render()
+            else:
+                self._more.flush()
         return overflow
 
     def flush(self):

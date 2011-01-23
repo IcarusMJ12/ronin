@@ -16,6 +16,7 @@ class Context(object):
         self.enemies = None
         self.world = None
         self.random = None
+        self.quit = None
     
     @classmethod
     def getContext(self):
