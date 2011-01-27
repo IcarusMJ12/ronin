@@ -5,8 +5,7 @@ from context import Context as Context
 from exceptions import NotImplementedError
 import sys
 import logging
-from messages import MessageBuffer
-from input import InputHandler
+from lie.input import InputHandler
 
 ctx=Context.getContext()
 

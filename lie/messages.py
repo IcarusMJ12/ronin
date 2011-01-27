@@ -1,13 +1,13 @@
 import pygame
 from pygame.locals import *
-from context import Context
 from widgets import TextBlock
 import logging
+import globals
 from input import InputHandler
 
 class MessageBuffer(object):
-    def __init__(self, rect, font, screen):
-        self._tb=TextBlock(rect,font,'[more]')
+    def __init__(self, rect, screen):
+        self._tb=TextBlock(rect,globals.font,'[more]')
         self._messages=''
         self._screen=screen
         self._screen.view.add(self._tb.sprites)

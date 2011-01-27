@@ -4,11 +4,13 @@ from pygame.locals import *
 from context import Context as Context
 from grids import Location, Tile, SquareGrid
 from objects import *
-import messages
-from random import Random
+from lie import messages
+from lie import ui
+from lie import input
+from lie import monofont
+import lie.globals
 import logging
-import ui, input
-import monofont
+from random import Random
 import sys
 
 def quit():
@@ -59,6 +61,9 @@ def init():
     ctx.screen.fill((0,0,0))
     ctx.background = ctx.screen.copy()
 
+    lie.globals.font = ctx.font
+    lie.globals.screen = ctx.screen
+    lie.globals.background=ctx.background
     #get random
     ctx.random = Random(0)
 
@@ -81,9 +86,9 @@ def init():
     handler.addFunction(exit, K_q, (KMOD_CTRL,))
 
     #setup screen manager
-    ctx.screen_manager=ui.ScreenManager(ui.Screen(handler,ctx))
+    ctx.screen_manager=ui.ScreenManager(ui.Screen(handler))
 
-    ctx.message_buffer=messages.MessageBuffer(pygame.rect.Rect(0,0,ctx.SCREEN_WIDTH, ctx.MESSAGE_BUFFER_HEIGHT*ctx.font.h), ctx.font, ctx.screen_manager.current)
+    ctx.message_buffer=messages.MessageBuffer(pygame.rect.Rect(0,0,ctx.SCREEN_WIDTH, ctx.MESSAGE_BUFFER_HEIGHT*ctx.font.h), ctx.screen_manager.current)
 
 def exit():
     pygame.display.quit()

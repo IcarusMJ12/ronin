@@ -1,5 +1,6 @@
 import pygame
 from input import InputHandlerManager
+import globals
 
 class ScreenManager(object):
     def __init__(self, screen):
@@ -18,9 +19,8 @@ class ScreenManager(object):
     current = property(_current, None)
 
 class Screen(object):
-    def __init__(self, input_handler, context):
-        self._ctx=context
-        self.view=View(self._ctx.screen, self._ctx.background)
+    def __init__(self, input_handler):
+        self.view=View(globals.screen, globals.background)
         self.handlers=InputHandlerManager(input_handler)
 
 class View(object):
