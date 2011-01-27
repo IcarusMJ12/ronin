@@ -1,13 +1,14 @@
 import pygame.sprite
 import pygame.rect
 import logging
+import globals
 
 __all__=['TextLine', 'BoundedTextLine', 'StaticTextLine', 'TextBlock']
 
 class TextLine(pygame.sprite.DirtySprite):
-    def __init__(self, rect, monofont):
+    def __init__(self, rect):
         super(TextLine, self).__init__()
-        self._font=monofont
+        self._font=globals.font
         self.rect=rect
         self._text=''
         self.image=self._font.render('',True,(255,255,255))
@@ -26,17 +27,17 @@ class TextLine(pygame.sprite.DirtySprite):
         self.render('')
     
 class BoundedTextLine(TextLine):
-    def __init__(self, rect, monofont):
-        super(BoundedTextLine, self).__init__(rect, monofont)
-        self._width=rect.w/monofont.w
+    def __init__(self, rect):
+        super(BoundedTextLine, self).__init__(rect)
+        self._width=rect.w/globals.font.w
     
     def render(self, text, color=(255,255,255), bgcolor=None):
         super(BoundedTextLine, self).render(text[:self._width], color, bgcolor)
         return text[self._width:]
 
 class SmartTextLine(BoundedTextLine):
-    def __init__(self, rect, monofont):
-        super(SmartTextLine, self).__init__(rect, monofont)
+    def __init__(self, rect):
+        super(SmartTextLine, self).__init__(rect)
     
     def render(self, text, color=(255,255,255), bgcolor=None):
         message=text.split('\n')
@@ -46,8 +47,8 @@ class SmartTextLine(BoundedTextLine):
         return '\n'.join(message)
 
 class StaticTextLine(TextLine):
-    def __init__(self, rect, monofont, text, color=(255,255,255), bgcolor=None):
-        super(StaticTextLine, self).__init__(rect, monofont)
+    def __init__(self, rect, text, color=(255,255,255), bgcolor=None):
+        super(StaticTextLine, self).__init__(rect)
         super(StaticTextLine, self).render(text, color, bgcolor)
         self._image_vis=self.image
         super(StaticTextLine, self).render('',color,bgcolor)
@@ -65,14 +66,14 @@ class StaticTextLine(TextLine):
             self.dirty=1
 
 class TextBlock(object):
-    def __init__(self, rect, monofont, more_prompt=None):
+    def __init__(self, rect, more_prompt=None):
         self._more=None
         if not more_prompt:
-            self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,monofont.h), monofont) for i in xrange(0,rect.h-monofont.h+1,monofont.h)]
+            self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,globals.font.h)) for i in xrange(0,rect.h-globals.font.h+1,globals.font.h)]
         else:
-            self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,monofont.h), monofont) for i in xrange(0,rect.h-monofont.h*2+1,monofont.h)]
-            self._lines.append(SmartTextLine(pygame.rect.Rect(rect.x,rect.y+(rect.h/monofont.h-1)*monofont.h,rect.w-len(more_prompt)*monofont.w,monofont.h),monofont))
-            self._more=StaticTextLine(pygame.rect.Rect(rect.x+rect.w-(len(more_prompt)*monofont.w), rect.y+(rect.h/monofont.h-1)*monofont.h,len(more_prompt)*monofont.w,monofont.h),monofont, more_prompt)
+            self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,globals.font.h)) for i in xrange(0,rect.h-globals.font.h*2+1,globals.font.h)]
+            self._lines.append(SmartTextLine(pygame.rect.Rect(rect.x,rect.y+(rect.h/globals.font.h-1)*globals.font.h,rect.w-len(more_prompt)*globals.font.w,globals.font.h)))
+            self._more=StaticTextLine(pygame.rect.Rect(rect.x+rect.w-(len(more_prompt)*globals.font.w), rect.y+(rect.h/globals.font.h-1)*globals.font.h,len(more_prompt)*globals.font.w,globals.font.h), more_prompt)
     
     def render(self, text, color=(255,255,255), bgcolor=None):
         overflow=text

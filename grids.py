@@ -88,4 +88,4 @@ class Grid(object):
 class SquareGrid(Grid):
     def __init__(self,level,width,height):
         super(SquareGrid, self).__init__(level, width, height)
-        self.grid=[[SquareTile(Location(level,j,i)) for i in xrange(width)] for j in xrange(height)]
+        self.grid=[[SquareTile(Location(level,i,j)) for j in xrange(height)] for i in xrange(width)]

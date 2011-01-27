@@ -7,7 +7,7 @@ from input import InputHandler
 
 class MessageBuffer(object):
     def __init__(self, rect, screen):
-        self._tb=TextBlock(rect,globals.font,'[more]')
+        self._tb=TextBlock(rect,'[more]')
         self._messages=''
         self._screen=screen
         self._screen.view.add(self._tb.sprites)

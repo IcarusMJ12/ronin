@@ -53,11 +53,12 @@ def init():
     ctx.font = monofont.MonoFont('Andale Mono.ttf', ctx.FONT_SIZE)
     (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = (ctx.font.w, ctx.font.h)
     ctx.GRID_OFFSET = ctx.CELL_HEIGHT*(ctx.MESSAGE_BUFFER_HEIGHT+1)
-    ctx.SCREEN_WIDTH = 25*ctx.CELL_WIDTH
+    ctx.SCREEN_WIDTH = 50*ctx.CELL_WIDTH
+    ctx.SCREEN_HEIGHT= 25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
     ctx.quit=quit
 
     #initialize display
-    ctx.screen = pygame.display.set_mode((25*ctx.CELL_WIDTH,25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET))
+    ctx.screen = pygame.display.set_mode((ctx.SCREEN_WIDTH,ctx.SCREEN_HEIGHT))
     ctx.screen.fill((0,0,0))
     ctx.background = ctx.screen.copy()
 
@@ -102,17 +103,17 @@ if __name__ == '__main__':
     pygame.display.set_caption('test1')
     pygame.display.update()
     #populate world
-    ctx.world=SquareGrid(0,25,25)
+    ctx.world=SquareGrid(0,50,25)
     for i in xrange(25):
         ctx.world.getTile(0,i).terrain=Wall()
-        ctx.world.getTile(24,i).terrain=Wall()
-    for i in xrange(23):
+        ctx.world.getTile(49,i).terrain=Wall()
+    for i in xrange(48):
         ctx.world.getTile(i+1,0).terrain=Wall()
         ctx.world.getTile(i+1,24).terrain=Wall()
-    tile=ctx.world.getTile(13,13)
+    tile=ctx.world.getTile(26,13)
     tile.actor=ctx.pc
     ctx.pc.parent=tile
-    for i in xrange(23):
+    for i in xrange(48):
         for j in xrange(23):
             if ctx.random.randint(0,5)==5:
                 try:
@@ -120,7 +121,7 @@ if __name__ == '__main__':
                 except:
                     pass
     ctx.enemies=[]
-    for i in xrange(23):
+    for i in xrange(48):
         for j in xrange(23):
             if ctx.random.randint(0,10)==10:
                 try:
