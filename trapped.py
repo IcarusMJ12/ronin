@@ -7,7 +7,7 @@ from objects import *
 import messages
 from random import Random
 import logging
-import ui
+import ui, input
 import monofont
 import sys
 
@@ -29,7 +29,7 @@ def mainloop():
         logging.info(ret)
         if not len(ctx.enemies):
             ctx.message_buffer.addMessage("You have slain all the vicious buggers!")
-            victory_handler=InputHandler()
+            victory_handler=input.InputHandler()
             victory_handler.addFunction(ctx.quit, K_RETURN)
             victory_handler.addFunction(ctx.quit, K_SPACE)
             ctx.screen_manager.current.handlers.push(victory_handler)
@@ -68,11 +68,15 @@ def init():
     #setup event handler
     pygame.event.set_allowed(None)
     pygame.event.set_allowed([KEYDOWN])
-    handler=ui.InputHandler()
-    handler.addFunction(ctx.pc.moveS, K_j)
-    handler.addFunction(ctx.pc.moveN, K_k)
-    handler.addFunction(ctx.pc.moveW, K_h)
-    handler.addFunction(ctx.pc.moveE, K_l)
+    handler=input.InputHandler()
+    handler.addFunction(ctx.pc.moveToOffset, K_j, (0,), 0, 1)
+    handler.addFunction(ctx.pc.moveToOffset, K_k, (0,), 0, -1)
+    handler.addFunction(ctx.pc.moveToOffset, K_h, (0,), -1, 0)
+    handler.addFunction(ctx.pc.moveToOffset, K_l, (0,), 1, 0)
+    handler.addFunction(ctx.pc.moveToOffset, K_y, (0,), -1, -1)
+    handler.addFunction(ctx.pc.moveToOffset, K_u, (0,), 1, -1)
+    handler.addFunction(ctx.pc.moveToOffset, K_b, (0,), -1, 1)
+    handler.addFunction(ctx.pc.moveToOffset, K_n, (0,), 1, 1)
     handler.addFunction(ctx.pc.idle, K_PERIOD)
     handler.addFunction(exit, K_q, (KMOD_CTRL,))
 

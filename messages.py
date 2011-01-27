@@ -3,7 +3,7 @@ from pygame.locals import *
 from context import Context
 from widgets import TextBlock
 import logging
-from ui import InputHandler
+from input import InputHandler
 
 class MessageBuffer(object):
     def __init__(self, rect, font, screen):

@@ -6,7 +6,7 @@ from exceptions import NotImplementedError
 import sys
 import logging
 from messages import MessageBuffer
-from ui import InputHandler
+from input import InputHandler
 
 ctx=Context.getContext()
 
