@@ -10,7 +10,7 @@ class MessageBuffer(object):
         self._tb=TextBlock(rect,'[more]')
         self._messages=''
         self._screen=screen
-        self._screen.view.add(self._tb.sprites)
+        self._screen.view.add(self._tb)
         self._handler=InputHandler()
         self._handler.addFunction(self.more, K_RETURN)
         self._handler.addFunction(self.more, K_SPACE)
@@ -19,7 +19,7 @@ class MessageBuffer(object):
     def addMessage(self, message):
         self._messages+=message
         self._messages=self._tb.render(self._messages)
-        self._screen.view.update()
+        self._tb.draw()
         if self._messages:
             self._screen.handlers.push(self._handler)
             self._flushing=False
@@ -35,5 +35,8 @@ class MessageBuffer(object):
         if not self._messages:
             self._screen.handlers.pop()
             self._flushing=True
-        self._screen.view.update()
+        self._tb.draw()
         return None
+
+    def draw(self):
+        self._tb.draw()

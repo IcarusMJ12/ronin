@@ -52,8 +52,20 @@ class Actor(BaseObject):
     def moveN(self):
         return self.moveToOffset(0,-1)
     
+    def moveNW(self):
+        return self.moveToOffset(-1,-1)
+
+    def moveNE(self):
+        return self.moveToOffset(1,-1)
+    
     def moveS(self):
         return self.moveToOffset(0,1)
+
+    def moveSW(self):
+        return self.moveToOffset(-1,1)
+
+    def moveSE(self):
+        return self.moveToOffset(1,1)
 
     def moveW(self):
         return self.moveToOffset(-1,0)
@@ -91,6 +103,12 @@ class PC(Human):
             tile.actor=None
         else:
             ctx.message_buffer.addMessage("Thud! You run into a wall.")
+    
+    def moveToTile(self,dst_tile):
+        ret=super(PC,self).moveToTile(dst_tile)
+        if ret:
+            ctx.world.center(dst_tile.rect)
+        return ret
 
 class Mogwai(Actor):
     """A vicious and hungry demon without much intelligence or sense of direction."""
@@ -106,7 +124,7 @@ class Mogwai(Actor):
             ctx.screen_manager.current.handlers.push(death_handler)
     
     def move(self):
-        choice=ctx.random.randint(0,3)
+        choice=ctx.random.randint(0,5)
         if(choice==0):
             self.moveN()
         elif(choice==1):
@@ -115,3 +133,7 @@ class Mogwai(Actor):
             self.moveW()
         elif(choice==3):
             self.moveE()
+        elif(choice==4):
+            self.moveNE()
+        elif(choice==5):
+            self.moveSW()

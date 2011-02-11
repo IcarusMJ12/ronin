@@ -65,8 +65,9 @@ class StaticTextLine(TextLine):
             self.image=self._image_vis
             self.dirty=1
 
-class TextBlock(object):
+class TextBlock(pygame.sprite.RenderUpdates):
     def __init__(self, rect, more_prompt=None):
+        super(TextBlock, self).__init__()
         self._more=None
         if not more_prompt:
             self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,globals.font.h)) for i in xrange(0,rect.h-globals.font.h+1,globals.font.h)]
@@ -74,6 +75,9 @@ class TextBlock(object):
             self._lines=[SmartTextLine(pygame.rect.Rect(rect.x,rect.y+i,rect.w,globals.font.h)) for i in xrange(0,rect.h-globals.font.h*2+1,globals.font.h)]
             self._lines.append(SmartTextLine(pygame.rect.Rect(rect.x,rect.y+(rect.h/globals.font.h-1)*globals.font.h,rect.w-len(more_prompt)*globals.font.w,globals.font.h)))
             self._more=StaticTextLine(pygame.rect.Rect(rect.x+rect.w-(len(more_prompt)*globals.font.w), rect.y+(rect.h/globals.font.h-1)*globals.font.h,len(more_prompt)*globals.font.w,globals.font.h), more_prompt)
+            self.add(self._more)
+        self.add(self._lines)
+        self.viewport=globals.screen.subsurface(rect)
     
     def render(self, text, color=(255,255,255), bgcolor=None):
         overflow=text
@@ -91,9 +95,6 @@ class TextBlock(object):
         if self._more:
             self._more.flush()
     
-    def getSprites(self):
-        if self._more:
-            return self._lines+[self._more]
-        return self._lines
-
-    sprites=property(getSprites,None)
+    def draw(self):
+        self.clear(self.viewport, globals.background)
+        pygame.display.update(super(TextBlock, self).draw(self.viewport))

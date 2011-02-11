@@ -1,6 +1,5 @@
 import pygame
 from input import InputHandlerManager
-import globals
 
 class ScreenManager(object):
     def __init__(self, screen):
@@ -20,19 +19,15 @@ class ScreenManager(object):
 
 class Screen(object):
     def __init__(self, input_handler):
-        self.view=View(globals.screen, globals.background)
+        self.view=View()
         self.handlers=InputHandlerManager(input_handler)
 
 class View(object):
-    def __init__(self, pygame_screen, background):
-        self._group=pygame.sprite.RenderClear()
-        self._screen=pygame_screen
-        self._background=background
+    def __init__(self):
+        self._groups=[]
 
-    def update(self):
-        self._group.clear(self._screen, self._background)
-        self._group.draw(self._screen)
-        pygame.display.update()
+    def draw(self):
+        map(lambda x: x.draw(), self._groups)
     
-    def add(self, *sprite):
-        self._group.add(*sprite)
+    def add(self, group):
+        self._groups.append(group)

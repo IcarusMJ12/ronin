@@ -2,7 +2,7 @@
 import pygame
 from pygame.locals import *
 from context import Context as Context
-from grids import Location, Tile, SquareGrid
+from grids import Location, Tile, PseudoHexGrid
 from objects import *
 from lie import messages
 from lie import ui
@@ -39,7 +39,7 @@ def mainloop():
         if ret is not None:
             for m in ctx.enemies:
                 m.move()
-            ctx.screen_manager.current.view.update()
+            ctx.screen_manager.current.view.draw()
 
 def init():
     #setup logger
@@ -53,8 +53,9 @@ def init():
     ctx.font = monofont.MonoFont('Andale Mono.ttf', ctx.FONT_SIZE)
     (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = (ctx.font.w, ctx.font.h)
     ctx.GRID_OFFSET = ctx.CELL_HEIGHT*(ctx.MESSAGE_BUFFER_HEIGHT+1)
-    ctx.SCREEN_WIDTH = 50*ctx.CELL_WIDTH
-    ctx.SCREEN_HEIGHT= 25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
+    ctx.SCREEN_WIDTH = 51*ctx.CELL_WIDTH
+    #ctx.SCREEN_HEIGHT= 25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
+    ctx.SCREEN_HEIGHT= 20*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
     ctx.quit=quit
 
     #initialize display
@@ -75,14 +76,12 @@ def init():
     pygame.event.set_allowed(None)
     pygame.event.set_allowed([KEYDOWN])
     handler=input.InputHandler()
-    handler.addFunction(ctx.pc.moveToOffset, K_j, (0,), 0, 1)
-    handler.addFunction(ctx.pc.moveToOffset, K_k, (0,), 0, -1)
-    handler.addFunction(ctx.pc.moveToOffset, K_h, (0,), -1, 0)
-    handler.addFunction(ctx.pc.moveToOffset, K_l, (0,), 1, 0)
-    handler.addFunction(ctx.pc.moveToOffset, K_y, (0,), -1, -1)
-    handler.addFunction(ctx.pc.moveToOffset, K_u, (0,), 1, -1)
-    handler.addFunction(ctx.pc.moveToOffset, K_b, (0,), -1, 1)
-    handler.addFunction(ctx.pc.moveToOffset, K_n, (0,), 1, 1)
+    handler.addFunction(ctx.pc.moveS, K_j)
+    handler.addFunction(ctx.pc.moveN, K_k)
+    handler.addFunction(ctx.pc.moveW, K_y)
+    handler.addFunction(ctx.pc.moveNE, K_u)
+    handler.addFunction(ctx.pc.moveSW, K_b)
+    handler.addFunction(ctx.pc.moveE, K_n)
     handler.addFunction(ctx.pc.idle, K_PERIOD)
     handler.addFunction(exit, K_q, (KMOD_CTRL,))
 
@@ -103,17 +102,18 @@ if __name__ == '__main__':
     pygame.display.set_caption('test1')
     pygame.display.update()
     #populate world
-    ctx.world=SquareGrid(0,50,25)
+    ctx.world=PseudoHexGrid(0,51,25)
     for i in xrange(25):
         ctx.world.getTile(0,i).terrain=Wall()
-        ctx.world.getTile(49,i).terrain=Wall()
-    for i in xrange(48):
+        ctx.world.getTile(50,i).terrain=Wall()
+    for i in xrange(49):
         ctx.world.getTile(i+1,0).terrain=Wall()
         ctx.world.getTile(i+1,24).terrain=Wall()
     tile=ctx.world.getTile(26,13)
     tile.actor=ctx.pc
     ctx.pc.parent=tile
-    for i in xrange(48):
+    ctx.world.center(tile.rect)
+    for i in xrange(49):
         for j in xrange(23):
             if ctx.random.randint(0,5)==5:
                 try:
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 except:
                     pass
     ctx.enemies=[]
-    for i in xrange(48):
+    for i in xrange(49):
         for j in xrange(23):
             if ctx.random.randint(0,10)==10:
                 try:
@@ -131,6 +131,6 @@ if __name__ == '__main__':
                     ctx.enemies.append(tile.actor)
                 except:
                     pass
-    ctx.screen_manager.current.view.add(*ctx.world.getTiles())
-    ctx.screen_manager.current.view.update()
+    ctx.screen_manager.current.view.add(ctx.world)
+    ctx.screen_manager.current.view.draw()
     mainloop()
