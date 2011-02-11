@@ -1,93 +1,18 @@
 import pygame
 from pygame.locals import *
-import copy
 from context import Context as Context
-from exceptions import NotImplementedError
-import sys
 import logging
 from lie.input import InputHandler
+import lie.objects
+
+__all__=['PC', 'Mogwai']
 
 ctx=Context.getContext()
 
-class BaseObject(object):
-    """All in-game objects should derive from this or one of its children."""
-
-class Terrain(BaseObject):
-    """A terrain feature."""
-    def __init__(self, passable_by):
-        self.passable_by=passable_by
-    
-    def isPassableBy(self, actor):
-        if self.passable_by is None:
-            return False
-        return isinstance(actor,self.passable_by)
-
-class Floor(Terrain):
-    """A floor that can be walked on."""
-    def __init__(self):
-        super(Floor, self).__init__(Actor)
-        self.symbol='.'
-
-class Wall(Terrain):
-    """An impassable wall, that may, however, be mined."""
-    def __init__(self):
-        super(Wall, self).__init__(None)
-        self.symbol='#'
-
-class Actor(BaseObject):
-    """Any object that can act of its own volition."""
-    def moveToTile(self, tile):
-        if(tile.isPassableBy(self)):
-            tile.actor=self
-            self.parent.actor=None
-            self.parent=tile
-            return True
-        else:
-            self.moveBlocked(tile)
-            return False
-    
-    def moveBlocked(self,tile):
-        raise NotImplementedError()
-    
-    def moveN(self):
-        return self.moveToOffset(0,-1)
-    
-    def moveNW(self):
-        return self.moveToOffset(-1,-1)
-
-    def moveNE(self):
-        return self.moveToOffset(1,-1)
-    
-    def moveS(self):
-        return self.moveToOffset(0,1)
-
-    def moveSW(self):
-        return self.moveToOffset(-1,1)
-
-    def moveSE(self):
-        return self.moveToOffset(1,1)
-
-    def moveW(self):
-        return self.moveToOffset(-1,0)
-
-    def moveE(self):
-        return self.moveToOffset(1,0)
-
-    def moveToLocation(self,loc):
+class Actor(lie.objects.Actor):
+    def moveToLocation(self, loc):
         dst_tile=ctx.world.getTile(loc.x,loc.y)
         return self.moveToTile(dst_tile)
-    
-    def moveToOffset(self,x,y):
-        src_tile=self.parent
-        assert(src_tile)
-        loc=copy.deepcopy(src_tile.location)
-        loc.x+=x
-        loc.y+=y
-        logging.debug(loc)
-        return self.moveToLocation(loc)
-
-    def idle(self):
-        return False
 
 class Human(Actor):
     """A typical Terran."""

@@ -3,6 +3,7 @@ import pygame
 from pygame.locals import *
 from context import Context as Context
 from lie.grids import Location, Tile, PseudoHexGrid
+from lie.objects import *
 from objects import *
 from lie import messages
 from lie import ui
@@ -79,6 +80,7 @@ def exit():
 if __name__ == '__main__':
     lie.init('trapped.conf')
     init()
+    ctx=Context.getContext()
     pygame.display.set_caption('trapped')
     pygame.display.update()
     #populate world
