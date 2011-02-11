@@ -2,11 +2,7 @@ import pygame
 from pygame.rect import Rect
 import abc
 from objects import *
-from context import Context as Context
-from copy import copy
-import lie.globals
-
-ctx=Context.getContext()
+import globals
 
 class Location(object):
     def __init__(self, level, x, y):
@@ -37,10 +33,10 @@ class Tile(pygame.sprite.DirtySprite):
             assert(self.isPassableBy(val))
         self._actor=val
         if(val):
-            self.image=ctx.font.render(self.actor.symbol,True,(255,255,255))
+            self.image=globals.font.render(self.actor.symbol,True,(255,255,255))
             self.dirty=1
         elif(self.terrain):
-            self.image=ctx.font.render(self.terrain.symbol,True,(255,255,255))
+            self.image=globals.font.render(self.terrain.symbol,True,(255,255,255))
             self.dirty=1
     
     def getActor(self):
@@ -52,7 +48,7 @@ class Tile(pygame.sprite.DirtySprite):
         assert(isinstance(val,Terrain))
         if(self.actor is None or val.isPassableBy(self.actor)):
             self._terrain=val
-            self.image=ctx.font.render(self.terrain.symbol,True,(255,255,255))
+            self.image=globals.font.render(self.terrain.symbol,True,(255,255,255))
             self.dirty=1
         else:
             raise 'Attempted to set terrain to a non-passable type while an actor was present.'
@@ -72,12 +68,12 @@ class Tile(pygame.sprite.DirtySprite):
 class SquareTile(Tile):
     def __init__(self, location):
         super(SquareTile, self).__init__(location)
-        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, location.y*ctx.CELL_HEIGHT),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
+        self.rect=pygame.sprite.Rect((location.x*globals.cell_width, location.y*globals.cell_height),(globals.cell_width,globals.cell_height))
 
 class PseudoHexTile(Tile):
     def __init__(self, location):
         super(PseudoHexTile, self).__init__(location)
-        self.rect=pygame.sprite.Rect((location.x*ctx.CELL_WIDTH, (location.y+float(location.x)/2)*ctx.CELL_HEIGHT),(ctx.CELL_WIDTH,ctx.CELL_HEIGHT))
+        self.rect=pygame.sprite.Rect((location.x*globals.cell_width, (location.y+float(location.x)/2)*globals.cell_height),(globals.cell_width,globals.cell_height))
 
 class Grid(object):
     __metaclass__ = abc.ABCMeta
@@ -108,19 +104,19 @@ class SquareGrid(Grid):
     def __init__(self,level,width,height):
         super(SquareGrid, self).__init__(level, width, height)
         self.grid=[[SquareTile(Location(level,i,j)) for j in xrange(height)] for i in xrange(width)]
-        self.view=GridView(Rect((0,ctx.GRID_OFFSET),(min(width*ctx.CELL_WIDTH,lie.globals.screen.get_width()),min(height*ctx.CELL_HEIGHT,lie.globals.screen.get_height()-ctx.GRID_OFFSET))),self.getTiles())
+        self.view=GridView(Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset))),self.getTiles())
     
 class PseudoHexGrid(Grid):
     def __init__(self,level,width,height):
         super(PseudoHexGrid, self).__init__(level, width, height)
         self.grid=[[PseudoHexTile(Location(level,i,j)) for j in xrange(height)] for i in xrange(width)]
-        self.view=GridView(Rect((0,ctx.GRID_OFFSET),(min(width*ctx.CELL_WIDTH,lie.globals.screen.get_width()),min(height*ctx.CELL_HEIGHT,lie.globals.screen.get_height()-ctx.GRID_OFFSET))),self.getTiles())
+        self.view=GridView(Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset))),self.getTiles())
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):
         super(GridView, self).__init__()
         print viewable_area
-        self.viewport=ctx.screen.subsurface(viewable_area)
+        self.viewport=globals.screen.subsurface(viewable_area)
         self._sprites=sprites
         self.add(sprites)
         (self.x,self.y)=(self.viewport.get_width()/2,self.viewport.get_height()/2)
@@ -139,7 +135,7 @@ class GridView(pygame.sprite.RenderUpdates):
         map(lambda i:i.rect.move_ip(x,y), self._sprites)
     
     def draw(self):
-        self.clear(self.viewport, lie.globals.background)
+        self.clear(self.viewport, globals.background)
         pygame.display.update(super(GridView, self).draw(self.viewport))
     
     def setSprites(sprites):

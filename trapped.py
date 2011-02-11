@@ -2,7 +2,7 @@
 import pygame
 from pygame.locals import *
 from context import Context as Context
-from grids import Location, Tile, PseudoHexGrid
+from lie.grids import Location, Tile, PseudoHexGrid
 from objects import *
 from lie import messages
 from lie import ui
@@ -47,25 +47,7 @@ def init():
     logging.basicConfig(level=logging.INFO)
 
     ctx=Context.getContext()
-    #setup initial configuration settings
-    ctx.FONT_SIZE = 24
-    ctx.MESSAGE_BUFFER_HEIGHT = 4
-    ctx.font = monofont.MonoFont('Andale Mono.ttf', ctx.FONT_SIZE)
-    (ctx.CELL_WIDTH,ctx.CELL_HEIGHT) = (ctx.font.w, ctx.font.h)
-    ctx.GRID_OFFSET = ctx.CELL_HEIGHT*(ctx.MESSAGE_BUFFER_HEIGHT+1)
-    ctx.SCREEN_WIDTH = 51*ctx.CELL_WIDTH
-    #ctx.SCREEN_HEIGHT= 25*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
-    ctx.SCREEN_HEIGHT= 20*ctx.CELL_HEIGHT+ctx.GRID_OFFSET
     ctx.quit=quit
-
-    #initialize display
-    ctx.screen = pygame.display.set_mode((ctx.SCREEN_WIDTH,ctx.SCREEN_HEIGHT))
-    ctx.screen.fill((0,0,0))
-    ctx.background = ctx.screen.copy()
-
-    lie.globals.font = ctx.font
-    lie.globals.screen = ctx.screen
-    lie.globals.background=ctx.background
     #get random
     ctx.random = Random(0)
 
@@ -88,18 +70,16 @@ def init():
     #setup screen manager
     ctx.screen_manager=ui.ScreenManager(ui.Screen(handler))
 
-    ctx.message_buffer=messages.MessageBuffer(pygame.rect.Rect(0,0,ctx.SCREEN_WIDTH, ctx.MESSAGE_BUFFER_HEIGHT*ctx.font.h), ctx.screen_manager.current)
+    ctx.message_buffer=messages.MessageBuffer(ctx.screen_manager.current)
 
 def exit():
     pygame.display.quit()
     sys.exit()
 
 if __name__ == '__main__':
-    pygame.init()
+    lie.init('trapped.conf')
     init()
-    ctx=Context.getContext()
-
-    pygame.display.set_caption('test1')
+    pygame.display.set_caption('trapped')
     pygame.display.update()
     #populate world
     ctx.world=PseudoHexGrid(0,51,25)
