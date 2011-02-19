@@ -15,27 +15,33 @@ class MessageBuffer(object):
         self._handler=InputHandler()
         self._handler.addFunction(self.more, K_RETURN)
         self._handler.addFunction(self.more, K_SPACE)
-        self._flushing=True
+        self._is_read=False
     
     def addMessage(self, message):
+        self.flush()
         self._messages+=message
         self._messages=self._tb.render(self._messages)
         self._tb.draw()
+        self._is_read=False
         if self._messages:
             self._screen.handlers.push(self._handler)
-            self._flushing=False
         return None
 
     def flush(self):
-        if self._flushing:
+        if self._is_read:
             self._messages=''
-            self._tb.flush()
+            self._tb.render(self._messages)
+        self._tb.draw()
+
+    def setIsRead(self,read):
+        self._is_read=read
+    
+    is_read=property(None,setIsRead)
     
     def more(self):
         self._messages=self._tb.render(self._messages)
         if not self._messages:
             self._screen.handlers.pop()
-            self._flushing=True
         self._tb.draw()
         return None
 

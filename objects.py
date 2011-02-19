@@ -5,7 +5,7 @@ import logging
 from lie.input import InputHandler
 import lie.objects
 
-__all__=['PC', 'Mogwai']
+__all__=['PC', 'Oni']
 
 ctx=Context.getContext()
 
@@ -15,14 +15,13 @@ class Actor(lie.objects.Actor):
         return self.moveToTile(dst_tile)
 
 class Human(Actor):
-    """A typical Terran."""
     def __init__(self):
         self.symbol='@'
 
 class PC(Human):
     """The man himself."""
     def moveBlocked(self,tile):
-        if(tile.actor and isinstance(tile.actor,Mogwai)):
+        if(tile.actor and isinstance(tile.actor,Oni)):
             ctx.message_buffer.addMessage("You hit the mogwai and slay it.")
             ctx.enemies.remove(tile.actor)
             tile.actor=None
@@ -35,30 +34,29 @@ class PC(Human):
             ctx.world.center(dst_tile.rect)
         return ret
 
-class Mogwai(Actor):
-    """A vicious and hungry demon without much intelligence or sense of direction."""
+class Oni(Actor):
     def __init__(self):
-        self.symbol='m'
+        self.symbol='o'
     
     def moveBlocked(self,tile):
         if(tile.actor==ctx.pc):
-            ctx.message_buffer.addMessage("A mogwai hits you.  You die! [Enter or Space to quit]")
+            ctx.message_buffer.addMessage("An oni hits you.  You die! [Enter or Space to quit]")
             death_handler=InputHandler()
             death_handler.addFunction(ctx.quit, K_RETURN)
             death_handler.addFunction(ctx.quit, K_SPACE)
             ctx.screen_manager.current.handlers.push(death_handler)
     
-    def move(self):
+    def act(self):
         choice=ctx.random.randint(0,5)
         if(choice==0):
             self.moveN()
         elif(choice==1):
             self.moveS()
         elif(choice==2):
-            self.moveW()
+            self.moveNW()
         elif(choice==3):
             self.moveE()
         elif(choice==4):
-            self.moveNE()
+            self.moveW()
         elif(choice==5):
-            self.moveSW()
+            self.moveSE()

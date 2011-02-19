@@ -73,7 +73,7 @@ class SquareTile(Tile):
 class PseudoHexTile(Tile):
     def __init__(self, location):
         super(PseudoHexTile, self).__init__(location)
-        self.rect=pygame.sprite.Rect((location.x*globals.cell_width, (location.y+float(location.x)/2)*globals.cell_height),(globals.cell_width,globals.cell_height))
+        self.rect=pygame.sprite.Rect(((location.y-location.x)*globals.cell_width, (location.y+location.x)*globals.cell_height/2),(globals.cell_width,globals.cell_height))
 
 class Grid(object):
     __metaclass__ = abc.ABCMeta
