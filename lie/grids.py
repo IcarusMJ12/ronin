@@ -26,10 +26,9 @@ class Tile(pygame.sprite.DirtySprite):
         self.items=None
         self.location=location
         self._was_seen=False
-        #self._was_seen=True #TODO: change back
         self._is_identified=False #TODO: make things work
         self._unseen_image=globals.font.render('',True,(255,255,255))
-        self._cover=(0,0) #(this tile's, player's)
+        self._cover=(1,1) #(this tile's, player's)
         self.image=self._unseen_image
         self._real_image=None
         self.setTerrain(Floor())
@@ -82,7 +81,7 @@ class Tile(pygame.sprite.DirtySprite):
         if(self.actor is None or val.isPassableBy(self.actor)):
             self._terrain=val
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
-            if(self._is_visible):
+            if(self._cover[0]<1):
                 self.image=self._real_image
                 self.dirty=1
             elif(self._was_seen):
