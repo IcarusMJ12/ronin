@@ -16,13 +16,14 @@ class Actor(lie.objects.Actor):
 
 class Human(Actor):
     def __init__(self):
+        super(Human, self).__init__()
         self.symbol='@'
 
 class PC(Human):
     """The man himself."""
     def moveBlocked(self,tile):
         if(tile.actor and isinstance(tile.actor,Oni)):
-            ctx.message_buffer.addMessage("You hit the mogwai and slay it.")
+            ctx.message_buffer.addMessage("You hit the oni and slay it.")
             ctx.enemies.remove(tile.actor)
             tile.actor=None
         else:
@@ -36,6 +37,7 @@ class PC(Human):
 
 class Oni(Actor):
     def __init__(self):
+        super(Oni, self).__init__()
         self.symbol='o'
     
     def moveBlocked(self,tile):

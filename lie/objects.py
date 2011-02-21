@@ -11,7 +11,7 @@ class BaseObject(object):
 
     @abc.abstractmethod
     def __init__(self):
-        pass
+        self.blocks_los=False
 
 class Terrain(BaseObject):
     """A terrain feature."""
@@ -19,7 +19,10 @@ class Terrain(BaseObject):
 
     @abc.abstractmethod
     def __init__(self, passable_by):
+        super(Terrain, self).__init__()
         self.passable_by=passable_by
+        self.is_visible=False
+        self.was_seen=False
     
     def isPassableBy(self, actor):
         if self.passable_by is None:
@@ -33,10 +36,11 @@ class Floor(Terrain):
         self.symbol='.'
 
 class Wall(Terrain):
-    """An impassable wall"""
+    """An impassable wall."""
     def __init__(self):
         super(Wall, self).__init__(None)
         self.symbol='#'
+        self.blocks_los=True
 
 class Actor(BaseObject):
     """Any object that can act of its own volition."""
@@ -44,7 +48,7 @@ class Actor(BaseObject):
 
     @abc.abstractmethod
     def __init__(self):
-        pass
+        super(Actor, self).__init__()
 
     def moveToTile(self, tile):
         if(tile.isPassableBy(self)):

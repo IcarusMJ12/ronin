@@ -20,6 +20,8 @@ def quit():
 def player_pre():
     ctx=Context.getContext()
     ctx.message_buffer.is_read=True
+    ctx.world.FOV(ctx.pc.parent,4)
+    ctx.world.draw()
 
 def player_phase():
     ctx=Context.getContext()
@@ -46,7 +48,6 @@ def enemies_phase():
     ctx=Context.getContext()
     for enemy in ctx.enemies:
         enemy.act()
-    ctx.world.draw()
     return True
 
 #initializing everything

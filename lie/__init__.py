@@ -10,6 +10,8 @@ def init(f):
     pygame.display.init()
     globals.font_size=conf.getint('lie','font_size')
     globals.font=monofont.MonoFont(conf.get('lie','font'),globals.font_size)
+    globals.scale_horizontally=conf.getint('lie','scale_horizontally')
+    globals.darkest_gray=conf.getfloat('lie','darkest_gray')
     (globals.cell_width,globals.cell_height)=(globals.font.w, globals.font.h)
     (globals.screen_width, globals.screen_height)=(conf.get('lie','screen_width'),conf.get('lie','screen_height'))
     if globals.screen_width[-2:]=='px':
