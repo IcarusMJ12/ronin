@@ -3,6 +3,7 @@ from pygame.rect import Rect
 import abc
 from objects import *
 import globals
+import math
 from exceptions import NotImplementedError
 
 class Location(object):
@@ -26,6 +27,7 @@ class Tile(pygame.sprite.DirtySprite):
         self.location=location
         self._is_visible=False
         self._was_seen=False
+        #self._was_seen=True #TODO: change back
         self._is_identified=False #TODO: make things work
         self._unseen_image=globals.font.render('',True,(255,255,255))
         self._cover=(0,0) #(this tile's, player's)
@@ -81,8 +83,12 @@ class Tile(pygame.sprite.DirtySprite):
         if(self.actor is None or val.isPassableBy(self.actor)):
             self._terrain=val
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
-            if(self._was_seen):
+            if(self._is_visible):
                 self.image=self._real_image
+                self.dirty=1
+            elif(self._was_seen):
+                g=globals.darkest_gray
+                self.image=globals.font.render(self.terrain.symbol,True,(255*g,255*g,255*g))
                 self.dirty=1
         else:
             raise 'Attempted to set terrain to a non-passable type while an actor was present.'
@@ -164,16 +170,63 @@ class PseudoHexGrid(Grid):
                 self.grid[x2][y2].is_visible=False
 
     def _LOS(self,src,dst):
+        printing=False
+        if src == dst:
+            return (0,0)
         (x1,y1)=src
         (x2,y2)=dst
+        if(x1==x2 and y2==y1+1):
+            printing=True
+            print src, dst
         (x_min,x_max)=(min(x1,x2),max(x1,x2)+1)
-        (x_min,x_max)=(max(x_min-1,0),min(len(self.grid),x_max+1))
+        (x_min,x_max)=(max(x_min,0),min(len(self.grid),x_max))
         (y_min,y_max)=(min(y1,y2),max(y1,y2)+1)
-        (y_min,y_max)=(max(y_min-1,0),min(len(self.grid[x_max]),y_max+1))
-        #tiles=filter(lambda i: i.blocksLOS(), [item for sublist in self.grid[x_min:x_max] for item in sublist[y_min:y_max]])
-        #if len(tiles) == 0:
-        return (0,0)
-        #return (1,1)
+        (y_min,y_max)=(max(y_min,0),min(len(self.grid[x_max]),y_max))
+        #determine if there are any candidate tiles that could block LOS, i.e. tiles falling within the rectangle defined by corners x1,y1 x2,y2
+        if x1 == x2:
+            (x_min,x_max)=(max(x_min-1,0),min(len(self.grid),x_max+1))
+        if y1 == y2:
+            (y_min,y_max)=(max(y_min-1,0),min(len(self.grid),y_max+1))
+        tiles=map(lambda i: (i.location.x, i.location.y), filter(lambda i: i.blocksLOS() and not (i.location.x==x1 and i.location.y==y1) and not (i.location.x==x2 and i.location.y==y2), [item for sublist in self.grid[x_min:x_max] for item in sublist[y_min:y_max]]))
+        if printing:
+            print (x_min,y_min),(x_max,y_max)
+            print tiles
+        #if no tiles, there can be no cover
+        if len(tiles) == 0:
+            return (0,0)
+        #otherwise convert to rectangular cartesian coordinates for further processing
+        (x1,y1,x2,y2)=(x1-y1*math.sin(math.pi/6),y1*math.cos(math.pi/6),x2-y2*math.sin(math.pi/6),y2*math.cos(math.pi/6))
+        tiles=map(lambda i: (i[0]-i[1]*math.sin(math.pi/6),i[1]*math.cos(math.pi/6)), tiles)
+        if printing:
+            print tiles
+        #if vertical lines, rotate 90 degrees
+        if x1 == x2:
+            (x1,y1)=(y1,x1)
+            (x2,y2)=(y2,x2)
+            tiles=map(lambda i: (i[1],i[0]), tiles)
+        normal1=(y1-y2,x2-x1)
+        normal1=(normal1[0]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)),normal1[1]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)))
+        normal2=(-normal1[0],-normal1[1])
+        dydx=(y2-y1)/(x2-x1) #dy/dx actually
+        y_intercept=-dydx*x1+y1
+        y_intercept1=y_intercept+(-dydx*normal1[0]+normal1[1])
+        y_intercept2=y_intercept+(-dydx*normal2[0]+normal2[1])
+        normal_slope=normal1[0]/normal1[1]
+        x_intercept1=x1-y1*normal_slope
+        x_intercept2=x2-y2*normal_slope
+        (y_intercept_min,y_intercept_max)=(min(y_intercept1,y_intercept2),max(y_intercept1,y_intercept2))
+        (x_intercept_min,x_intercept_max)=(min(x_intercept1,x_intercept2),max(x_intercept1,x_intercept2))
+        if printing:
+            print (x1,y1),(x2,y2),tiles
+            print normal1, normal2, dydx
+            print y_intercept_min,y_intercept_max
+            for i in tiles:
+                print i,':',-dydx*i[0]+i[1]
+        tiles=filter(lambda i: y_intercept_min<(-dydx*i[0]+i[1])<y_intercept_max, tiles)
+        tiles=filter(lambda i: x_intercept_min<(i[0]-i[1]*normal_slope)<x_intercept_max, tiles)
+        if len(tiles) == 0:
+            return (0,0)
+        return (1,1)
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):

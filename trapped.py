@@ -20,7 +20,7 @@ def quit():
 def player_pre():
     ctx=Context.getContext()
     ctx.message_buffer.is_read=True
-    ctx.world.FOV(ctx.pc.parent,4)
+    ctx.world.FOV(ctx.pc.parent,6)
     ctx.world.draw()
 
 def player_phase():
