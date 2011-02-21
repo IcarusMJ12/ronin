@@ -25,7 +25,6 @@ class Tile(pygame.sprite.DirtySprite):
         self._terrain=None
         self.items=None
         self.location=location
-        self._is_visible=False
         self._was_seen=False
         #self._was_seen=True #TODO: change back
         self._is_identified=False #TODO: make things work
@@ -36,11 +35,11 @@ class Tile(pygame.sprite.DirtySprite):
         self.setTerrain(Floor())
         self.dirty=1
     
-    def setIsVisible(self,val):
-        if(val==self._is_visible):
+    def setCover(self,val):
+        if(val==self._cover):
             return
-        self._is_visible=val
-        if(val):
+        self._cover=val
+        if(val[0]<1):
             self._was_seen=True
             self.image=self._real_image
             self.dirty=1
@@ -49,10 +48,10 @@ class Tile(pygame.sprite.DirtySprite):
             self.image=globals.font.render(self.terrain.symbol,True,(255*g,255*g,255*g))
             self.dirty=1
     
-    def getIsVisible(self):
-        return self._is_visible
+    def getCover(self):
+        return self._cover
 
-    is_visible=property(getIsVisible,setIsVisible)
+    cover=property(getCover,setCover)
 
     def blocksLOS(self):
         return (self._terrain and self._terrain.blocks_los) or (self._actor and self._actor.blocks_los)
@@ -64,12 +63,12 @@ class Tile(pygame.sprite.DirtySprite):
         self._actor=val
         if(val):
             self._real_image=globals.font.render(self.actor.symbol,True,(255,255,255))
-            if(self._is_visible):
+            if(self._cover[0]<1):
                 self.image=self._real_image
                 self.dirty=1
         elif(self.terrain):
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
-            if(self._is_visible):
+            if(self._cover[0]<1):
                 self.image=self._real_image
                 self.dirty=1
     
@@ -164,10 +163,9 @@ class PseudoHexGrid(Grid):
         for x2 in xrange(len(self.grid)):
             for y2 in xrange(len(self.grid[x2])):
                 if pow(x2-x1,2)+pow(y2-y1,2)-(y2-y1)*(x2-x1)<=pow(radius,2)+radius:
-                    if self._LOS((x1,y1),(x2,y2))[0]<1:
-                        self.grid[x2][y2].is_visible=True
-                        continue
-                self.grid[x2][y2].is_visible=False
+                    self.grid[x2][y2].cover=self._LOS((x1,y1),(x2,y2))
+                    continue
+                self.grid[x2][y2].cover=(1,1)
 
     def _LOS(self,src,dst):
         printing=False
