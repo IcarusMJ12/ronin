@@ -7,7 +7,7 @@ import math
 from exceptions import NotImplementedError
 import fractions
 
-TILE_SAMPLE_COUNT=3
+TILE_SAMPLE_COUNT=5
 
 class Location(object):
     def __init__(self, level, x, y):
@@ -186,6 +186,9 @@ class PseudoHexGrid(Grid):
     def _LOS(self,src,dst):
         if src == dst:
             return (0,0)
+        debug = False
+        if src == (26,13) and dst == (26,15):
+            debug = True
         (x1,y1)=src
         (x2,y2)=dst
         (x_min,x_max)=(min(x1,x2),max(x1,x2)+1)
@@ -202,7 +205,7 @@ class PseudoHexGrid(Grid):
         if len(tiles) == 0:
             return (0,0)
         #determine if there are any tiles that are literally between src and dst
-        interval=fractions.gcd(x2-x1,y2-y1)
+        interval=abs(fractions.gcd(x2-x1,y2-y1))
         if interval>1:
             x_step=(x2-x1)/interval
             y_step=(y2-y1)/interval
@@ -210,9 +213,13 @@ class PseudoHexGrid(Grid):
             full_cover_tiles=filter(lambda i: i in x_y, tiles)
             if len(full_cover_tiles):
                 return (1,1)
+        if debug:
+            print '\ttiles before conversion:', (x1,y1),(x2,y2),tiles
         #otherwise convert to rectangular cartesian coordinates for further processing
         (x1,y1,x2,y2)=(x1-y1*math.sin(math.pi/6),y1*math.cos(math.pi/6),x2-y2*math.sin(math.pi/6),y2*math.cos(math.pi/6))
         tiles=map(lambda i: (i[0]-i[1]*math.sin(math.pi/6),i[1]*math.cos(math.pi/6)), tiles)
+        if debug:
+            print '\ttiles after conversion:', (x1,y1),(x2,y2),tiles
         #if vertical lines, rotate 90 degrees to circumvent division by 0 for calculating slope
         if x1 == x2:
             (x1,y1)=(y1,x1)
@@ -245,12 +252,15 @@ class PseudoHexGrid(Grid):
             normal_up=normal2
             normal_down=normal1
         #points filtering out areas above and below within our viewing rectangle, respectively
-        points_above=map(lambda i: (i[0]+normal_down[0],i[1]+normal_down[1]), filter(lambda i: y_intercept<(-dydx*i[0]+i[1]), tiles))
-        points_below=map(lambda i: (i[0]+normal_up[0],i[1]+normal_up[1]), filter(lambda i: (-dydx*i[0]+i[1])<y_intercept, tiles))
+        points_above=map(lambda i: (i[0]+normal_down[0]/(2.0*math.cos(math.pi/6.0)),i[1]+normal_down[1]/(2.0*math.cos(math.pi/6.0))), filter(lambda i: y_intercept<(-dydx*i[0]+i[1]), tiles))
+        points_below=map(lambda i: (i[0]+normal_up[0]/(2.0*math.cos(math.pi/6.0)),i[1]+normal_up[1]/(2.0*math.cos(math.pi/6.0))), filter(lambda i: (-dydx*i[0]+i[1])<y_intercept, tiles))
         #print points_above, points_below
         tile_sample_intervals=map(lambda i: float(i)/(TILE_SAMPLE_COUNT-1)*2, xrange(0.0,TILE_SAMPLE_COUNT))
-        src_points=map(lambda i: (x1+normal1[0]+normal2[0]*i, y1+normal1[1]+normal2[1]*i), tile_sample_intervals)
-        dst_points=map(lambda i: (x2+normal1[0]+normal2[0]*i, y2+normal1[1]+normal2[1]*i), tile_sample_intervals)
+        src_points=map(lambda i: (x1+normal1[0]/2.0+normal2[0]*i/2.0, y1+normal1[1]/2.0+normal2[1]*i/2.0), tile_sample_intervals)
+        dst_points=map(lambda i: (x2+normal1[0]/2.0+normal2[0]*i/2.0, y2+normal1[1]/2.0+normal2[1]*i/2.0), tile_sample_intervals)
+        if debug:
+            print '\tobstacles:', points_above, points_below
+            print '\tsamples:', src_points, dst_points
         src_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
         dst_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
         for i in xrange(TILE_SAMPLE_COUNT):
@@ -275,6 +285,9 @@ class PseudoHexGrid(Grid):
                         continue
                     src_accumulator[i]+=1
                     dst_accumulator[j]+=1
+        if debug:
+            print '\tsrc_accumulator:', src_accumulator
+            print '\tdst_accumulator:', dst_accumulator
         return (1.0-float(max(src_accumulator))/TILE_SAMPLE_COUNT, 1.0-float(max(dst_accumulator))/TILE_SAMPLE_COUNT)
 
 class GridView(pygame.sprite.RenderUpdates):
