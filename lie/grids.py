@@ -5,6 +5,9 @@ from objects import *
 import globals
 import math
 from exceptions import NotImplementedError
+import fractions
+
+TILE_SAMPLE_COUNT=3
 
 class Location(object):
     def __init__(self, level, x, y):
@@ -25,7 +28,7 @@ class Tile(pygame.sprite.DirtySprite):
         self._terrain=None
         self.items=None
         self.location=location
-        self._was_seen=False
+        self._was_seen=True #TODO: False
         self._is_identified=False #TODO: make things work
         self._unseen_image=globals.font.render('',True,(255,255,255))
         self._cover=(1,1) #(this tile's, player's)
@@ -40,7 +43,13 @@ class Tile(pygame.sprite.DirtySprite):
         self._cover=val
         if(val[0]<1):
             self._was_seen=True
-            self.image=self._real_image
+            #self.image=self._real_image
+            g=globals.darkest_gray
+            b=255.0*(g+(1.0-g)*(1.0-val[0]))
+            if self.actor:
+                self.image=globals.font.render(self.actor.symbol,True,(b,b,b))
+            else:
+                self.image=globals.font.render(self.terrain.symbol,True,(b,b,b))
             self.dirty=1
         elif(self._was_seen):
             g=globals.darkest_gray
@@ -63,12 +72,18 @@ class Tile(pygame.sprite.DirtySprite):
         if(val):
             self._real_image=globals.font.render(self.actor.symbol,True,(255,255,255))
             if(self._cover[0]<1):
-                self.image=self._real_image
+                #self.image=self._real_image
+                g=globals.darkest_gray
+                b=255.0*(g+(1.0-g)*(1.0-self._cover[0]))
+                self.image=globals.font.render(self.actor.symbol,True,(b,b,b))
                 self.dirty=1
         elif(self.terrain):
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
             if(self._cover[0]<1):
-                self.image=self._real_image
+                g=globals.darkest_gray
+                b=255.0*(g+(1.0-g)*(1.0-self._cover[0]))
+                self.image=globals.font.render(self.terrain.symbol,True,(b,b,b))
+                #self.image=self._real_image
                 self.dirty=1
     
     def getActor(self):
@@ -163,9 +178,11 @@ class PseudoHexGrid(Grid):
             for y2 in xrange(len(self.grid[x2])):
                 if pow(x2-x1,2)+pow(y2-y1,2)-(y2-y1)*(x2-x1)<=pow(radius,2)+radius:
                     self.grid[x2][y2].cover=self._LOS((x1,y1),(x2,y2))
+                    print (x1,y1), (x2,y2), self.grid[x2][y2].cover
                     continue
                 self.grid[x2][y2].cover=(1,1)
 
+    #TODO: this is a long-ass function, it shouldn't be like this
     def _LOS(self,src,dst):
         if src == dst:
             return (0,0)
@@ -184,6 +201,15 @@ class PseudoHexGrid(Grid):
         #if no tiles, there can be no cover
         if len(tiles) == 0:
             return (0,0)
+        #determine if there are any tiles that are literally between src and dst
+        interval=fractions.gcd(x2-x1,y2-y1)
+        if interval>1:
+            x_step=(x2-x1)/interval
+            y_step=(y2-y1)/interval
+            x_y=[(x1+x_step*(i+1), y1+y_step*(i+1)) for i in xrange(interval-1)]
+            full_cover_tiles=filter(lambda i: i in x_y, tiles)
+            if len(full_cover_tiles):
+                return (1,1)
         #otherwise convert to rectangular cartesian coordinates for further processing
         (x1,y1,x2,y2)=(x1-y1*math.sin(math.pi/6),y1*math.cos(math.pi/6),x2-y2*math.sin(math.pi/6),y2*math.cos(math.pi/6))
         tiles=map(lambda i: (i[0]-i[1]*math.sin(math.pi/6),i[1]*math.cos(math.pi/6)), tiles)
@@ -193,27 +219,63 @@ class PseudoHexGrid(Grid):
             (x2,y2)=(y2,x2)
             tiles=map(lambda i: (i[1],i[0]), tiles)
         dydx=(y2-y1)/(x2-x1) #dy/dx actually
-        #determine if there are any tiles that are literally between src and dst
-        full_cover_tiles=filter(lambda i: (i[1]-y1)/(i[0]-x1)==dydx, tiles)
-        if len(full_cover_tiles):
-            print full_cover_tiles
-            return (1,1)
         normal1=(y1-y2,x2-x1)
         normal1=(normal1[0]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)),normal1[1]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)))
         normal2=(-normal1[0],-normal1[1])
         y_intercept=-dydx*x1+y1
         y_intercept1=y_intercept+(-dydx*normal1[0]+normal1[1])
         y_intercept2=y_intercept+(-dydx*normal2[0]+normal2[1])
-        normal_slope=normal1[0]/normal1[1]
+        normal_slope=normal1[0]/normal1[1] #x/y slope is intentional
         x_intercept1=x1-y1*normal_slope
         x_intercept2=x2-y2*normal_slope
         (y_intercept_min,y_intercept_max)=(min(y_intercept1,y_intercept2),max(y_intercept1,y_intercept2))
         (x_intercept_min,x_intercept_max)=(min(x_intercept1,x_intercept2),max(x_intercept1,x_intercept2))
+        #filtering out tiles that fall outside the rectangle determined by the line joining src and dst and both unit normals to that line
         tiles=filter(lambda i: y_intercept_min<(-dydx*i[0]+i[1])<y_intercept_max, tiles)
         tiles=filter(lambda i: x_intercept_min<(i[0]-i[1]*normal_slope)<x_intercept_max, tiles)
         if len(tiles) == 0:
             return (0,0)
-        return (1,1)
+        #determine the sets of points that are above and below the line and offset them accordingly by half a unit circle
+        normal_up=None
+        normal_down=None
+        if normal1[1]>0:
+            normal_up=normal1
+            normal_down=normal2
+        else:
+            normal_up=normal2
+            normal_down=normal1
+        #points filtering out areas above and below within our viewing rectangle, respectively
+        points_above=map(lambda i: (i[0]+normal_down[0],i[1]+normal_down[1]), filter(lambda i: y_intercept<(-dydx*i[0]+i[1]), tiles))
+        points_below=map(lambda i: (i[0]+normal_up[0],i[1]+normal_up[1]), filter(lambda i: (-dydx*i[0]+i[1])<y_intercept, tiles))
+        #print points_above, points_below
+        tile_sample_intervals=map(lambda i: float(i)/(TILE_SAMPLE_COUNT-1)*2, xrange(0.0,TILE_SAMPLE_COUNT))
+        src_points=map(lambda i: (x1+normal1[0]+normal2[0]*i, y1+normal1[1]+normal2[1]*i), tile_sample_intervals)
+        dst_points=map(lambda i: (x2+normal1[0]+normal2[0]*i, y2+normal1[1]+normal2[1]*i), tile_sample_intervals)
+        src_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
+        dst_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
+        for i in xrange(TILE_SAMPLE_COUNT):
+            for j in xrange(TILE_SAMPLE_COUNT):
+                if(src_points[i][0]==dst_points[j][0]):
+                    obstacles=filter(lambda k: k[0]<src_points[i][0], points_above)
+                    if len(obstacles):
+                        continue
+                    obstacles=filter(lambda k: k[0]>src_points[i][0], points_below)
+                    if len(obstacles):
+                        continue
+                    src_accumulator[i]+=1
+                    dst_accumulator[j]+=1
+                else:
+                    slope=(dst_points[j][1]-src_points[i][1])/(dst_points[j][0]-src_points[i][0])
+                    y_i=-slope*src_points[i][0]+src_points[i][1]
+                    obstacles=filter(lambda k: k[0]*slope+y_i>k[1], points_above)
+                    if len(obstacles):
+                        continue
+                    obstacles=filter(lambda k: k[0]*slope+y_i<k[1], points_below)
+                    if len(obstacles):
+                        continue
+                    src_accumulator[i]+=1
+                    dst_accumulator[j]+=1
+        return (1.0-float(max(src_accumulator))/TILE_SAMPLE_COUNT, 1.0-float(max(dst_accumulator))/TILE_SAMPLE_COUNT)
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):
