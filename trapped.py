@@ -132,4 +132,4 @@ if __name__ == '__main__':
     tm=turns.TurnManager()
     tm.add(player_turn)
     tm.add(enemies_turn)
-    profile.run("tm.run()")
+    profile.run("tm.run()",'trapped.prof')
