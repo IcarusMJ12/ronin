@@ -85,11 +85,11 @@ def init():
 
     ctx.message_buffer=messages.MessageBuffer(ctx.screen_manager.current)
 
-    pygame.display.set_caption('trapped')
+    pygame.display.set_caption('ronin')
     pygame.display.update()
 
 if __name__ == '__main__':
-    lie.init('trapped.conf')
+    lie.init('ronin.conf')
     init()
     ctx=Context.getContext()
     #populate world
@@ -132,4 +132,4 @@ if __name__ == '__main__':
     tm=turns.TurnManager()
     tm.add(player_turn)
     tm.add(enemies_turn)
-    profile.run("tm.run()",'trapped.prof')
+    profile.run("tm.run()",'ronin.prof')
