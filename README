@@ -1,6 +1,6 @@
 You need python (tested with 2.6+) and pygame installed.
 
-Run ./trapped.py
+Run ./ronin.py
 
 Currently only the original roguelike keys are supported (jkyubn).  As the grid is hex, left-right movement isn't possible.
 Walk into an oni to kill it; if it walks into you you die and the game terminates.  Ctrl+q quits the game.
