@@ -33,9 +33,11 @@ class HexFOV(object):
         (x1,y1)=(tile.location.x,tile.location.y)
         for x2 in xrange(len(self.grid)):
             for y2 in xrange(len(self.grid[x2])):
-                if pow(x2-x1,2)+pow(y2-y1,2)-(y2-y1)*(x2-x1)<=pow(radius,2)+radius:
+                d=pow(x2-x1,2)+pow(y2-y1,2)-(y2-y1)*(x2-x1)
+                self.grid[x2][y2].d2=d
+                if d<=pow(radius,2)+radius:
                     self.grid[x2][y2].cover=self._LOS((x1,y1),(x2,y2))
-                    print (x1,y1), (x2,y2), self.grid[x2][y2].cover
+                    print (x1,y1), (x2,y2), self.grid[x2][y2].cover, d
                     continue
                 self.grid[x2][y2].cover=(1,1)
 

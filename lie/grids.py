@@ -34,11 +34,22 @@ class Tile(pygame.sprite.DirtySprite):
         self._is_identified=False #TODO: make things work
         self._unseen_image=globals.font.render('',True,(255,255,255))
         self._cover=(1,1) #(this tile's, player's)
+        self.d2=0 #distance squared
         self.image=self._unseen_image
         self._real_image=None
         self.setTerrain(Floor())
         self.dirty=1
     
+    #this function has been hijacked to showcase FOV
+    def _computeTileColor(self):
+        gray=globals.darkest_gray
+        g=(gray+(1.0-gray)*(1.0-self._cover[0]))
+        r=(gray+(1.0-gray)*(1.0-self._cover[1]))
+        b=0
+        if self.d2:
+            b=(1.0/math.pow(self.d2,0.25))
+        return (r*255,g*255,b*255)
+
     def setCover(self,val):
         if(val==self._cover):
             return
@@ -46,12 +57,11 @@ class Tile(pygame.sprite.DirtySprite):
         if(val[0]<1):
             self._was_seen=True
             #self.image=self._real_image
-            g=globals.darkest_gray
-            b=255.0*(g+(1.0-g)*(1.0-val[0]))
+            c=self._computeTileColor()
             if self.actor:
-                self.image=globals.font.render(self.actor.symbol,True,(b,b,b))
+                self.image=globals.font.render(self.actor.symbol,True,c)
             else:
-                self.image=globals.font.render(self.terrain.symbol,True,(b,b,b))
+                self.image=globals.font.render(self.terrain.symbol,True,c)
             self.dirty=1
         elif(self._was_seen):
             g=globals.darkest_gray
@@ -75,16 +85,12 @@ class Tile(pygame.sprite.DirtySprite):
             self._real_image=globals.font.render(self.actor.symbol,True,(255,255,255))
             if(self._cover[0]<1):
                 #self.image=self._real_image
-                g=globals.darkest_gray
-                b=255.0*(g+(1.0-g)*(1.0-self._cover[0]))
-                self.image=globals.font.render(self.actor.symbol,True,(b,b,b))
+                self.image=globals.font.render(self.actor.symbol,True,self._computeTileColor())
                 self.dirty=1
         elif(self.terrain):
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
             if(self._cover[0]<1):
-                g=globals.darkest_gray
-                b=255.0*(g+(1.0-g)*(1.0-self._cover[0]))
-                self.image=globals.font.render(self.terrain.symbol,True,(b,b,b))
+                self.image=globals.font.render(self.terrain.symbol,True,self._computeTileColor())
                 #self.image=self._real_image
                 self.dirty=1
     
