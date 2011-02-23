@@ -2,12 +2,14 @@ import pygame
 from pygame.rect import Rect
 import abc
 from objects import *
+from hexfov import HexFOV
 import globals
 import math
 from exceptions import NotImplementedError
 import fractions
+import profile
 
-TILE_SAMPLE_COUNT=5
+TILE_SAMPLE_COUNT=16
 
 class Location(object):
     def __init__(self, level, x, y):
@@ -171,124 +173,10 @@ class PseudoHexGrid(Grid):
         super(PseudoHexGrid, self).__init__(level, width, height)
         self.grid=[[PseudoHexTile(Location(level,i,j)) for j in xrange(height)] for i in xrange(width)]
         self.view=GridView(Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset))),self.getTiles())
-
-    def FOV(self,tile,radius):
-        (x1,y1)=(tile.location.x,tile.location.y)
-        for x2 in xrange(len(self.grid)):
-            for y2 in xrange(len(self.grid[x2])):
-                if pow(x2-x1,2)+pow(y2-y1,2)-(y2-y1)*(x2-x1)<=pow(radius,2)+radius:
-                    self.grid[x2][y2].cover=self._LOS((x1,y1),(x2,y2))
-                    print (x1,y1), (x2,y2), self.grid[x2][y2].cover
-                    continue
-                self.grid[x2][y2].cover=(1,1)
-
-    #TODO: this is a long-ass function, it shouldn't be like this
-    def _LOS(self,src,dst):
-        if src == dst:
-            return (0,0)
-        debug = False
-        if src == (26,13) and dst == (26,15):
-            debug = True
-        (x1,y1)=src
-        (x2,y2)=dst
-        (x_min,x_max)=(min(x1,x2),max(x1,x2)+1)
-        (x_min,x_max)=(max(x_min,0),min(len(self.grid),x_max))
-        (y_min,y_max)=(min(y1,y2),max(y1,y2)+1)
-        (y_min,y_max)=(max(y_min,0),min(len(self.grid[x_max]),y_max))
-        #determine if there are any candidate tiles that could block LOS, i.e. tiles falling within the rectangle defined by corners x1,y1 x2,y2
-        if x1 == x2:
-            (x_min,x_max)=(max(x_min-1,0),min(len(self.grid),x_max+1))
-        if y1 == y2:
-            (y_min,y_max)=(max(y_min-1,0),min(len(self.grid),y_max+1))
-        tiles=map(lambda i: (i.location.x, i.location.y), filter(lambda i: i.blocksLOS() and not (i.location.x==x1 and i.location.y==y1) and not (i.location.x==x2 and i.location.y==y2), [item for sublist in self.grid[x_min:x_max] for item in sublist[y_min:y_max]]))
-        #if no tiles, there can be no cover
-        if len(tiles) == 0:
-            return (0,0)
-        #determine if there are any tiles that are literally between src and dst
-        interval=abs(fractions.gcd(x2-x1,y2-y1))
-        if interval>1:
-            x_step=(x2-x1)/interval
-            y_step=(y2-y1)/interval
-            x_y=[(x1+x_step*(i+1), y1+y_step*(i+1)) for i in xrange(interval-1)]
-            full_cover_tiles=filter(lambda i: i in x_y, tiles)
-            if len(full_cover_tiles):
-                return (1,1)
-        if debug:
-            print '\ttiles before conversion:', (x1,y1),(x2,y2),tiles
-        #otherwise convert to rectangular cartesian coordinates for further processing
-        (x1,y1,x2,y2)=(x1-y1*math.sin(math.pi/6),y1*math.cos(math.pi/6),x2-y2*math.sin(math.pi/6),y2*math.cos(math.pi/6))
-        tiles=map(lambda i: (i[0]-i[1]*math.sin(math.pi/6),i[1]*math.cos(math.pi/6)), tiles)
-        if debug:
-            print '\ttiles after conversion:', (x1,y1),(x2,y2),tiles
-        #if vertical lines, rotate 90 degrees to circumvent division by 0 for calculating slope
-        if x1 == x2:
-            (x1,y1)=(y1,x1)
-            (x2,y2)=(y2,x2)
-            tiles=map(lambda i: (i[1],i[0]), tiles)
-        dydx=(y2-y1)/(x2-x1) #dy/dx actually
-        normal1=(y1-y2,x2-x1)
-        normal1=(normal1[0]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)),normal1[1]/math.sqrt(pow(normal1[0],2)+pow(normal1[1],2)))
-        normal2=(-normal1[0],-normal1[1])
-        y_intercept=-dydx*x1+y1
-        y_intercept1=y_intercept+(-dydx*normal1[0]+normal1[1])
-        y_intercept2=y_intercept+(-dydx*normal2[0]+normal2[1])
-        normal_slope=normal1[0]/normal1[1] #x/y slope is intentional
-        x_intercept1=x1-y1*normal_slope
-        x_intercept2=x2-y2*normal_slope
-        (y_intercept_min,y_intercept_max)=(min(y_intercept1,y_intercept2),max(y_intercept1,y_intercept2))
-        (x_intercept_min,x_intercept_max)=(min(x_intercept1,x_intercept2),max(x_intercept1,x_intercept2))
-        #filtering out tiles that fall outside the rectangle determined by the line joining src and dst and both unit normals to that line
-        tiles=filter(lambda i: y_intercept_min<(-dydx*i[0]+i[1])<y_intercept_max, tiles)
-        tiles=filter(lambda i: x_intercept_min<(i[0]-i[1]*normal_slope)<x_intercept_max, tiles)
-        if len(tiles) == 0:
-            return (0,0)
-        #determine the sets of points that are above and below the line and offset them accordingly by half a unit circle
-        normal_up=None
-        normal_down=None
-        if normal1[1]>0:
-            normal_up=normal1
-            normal_down=normal2
-        else:
-            normal_up=normal2
-            normal_down=normal1
-        #points filtering out areas above and below within our viewing rectangle, respectively
-        points_above=map(lambda i: (i[0]+normal_down[0]/(2.0*math.cos(math.pi/6.0)),i[1]+normal_down[1]/(2.0*math.cos(math.pi/6.0))), filter(lambda i: y_intercept<(-dydx*i[0]+i[1]), tiles))
-        points_below=map(lambda i: (i[0]+normal_up[0]/(2.0*math.cos(math.pi/6.0)),i[1]+normal_up[1]/(2.0*math.cos(math.pi/6.0))), filter(lambda i: (-dydx*i[0]+i[1])<y_intercept, tiles))
-        #print points_above, points_below
-        tile_sample_intervals=map(lambda i: float(i)/(TILE_SAMPLE_COUNT-1)*2, xrange(0.0,TILE_SAMPLE_COUNT))
-        src_points=map(lambda i: (x1+normal1[0]/2.0+normal2[0]*i/2.0, y1+normal1[1]/2.0+normal2[1]*i/2.0), tile_sample_intervals)
-        dst_points=map(lambda i: (x2+normal1[0]/2.0+normal2[0]*i/2.0, y2+normal1[1]/2.0+normal2[1]*i/2.0), tile_sample_intervals)
-        if debug:
-            print '\tobstacles:', points_above, points_below
-            print '\tsamples:', src_points, dst_points
-        src_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
-        dst_accumulator=[0 for i in xrange(TILE_SAMPLE_COUNT)]
-        for i in xrange(TILE_SAMPLE_COUNT):
-            for j in xrange(TILE_SAMPLE_COUNT):
-                if(src_points[i][0]==dst_points[j][0]):
-                    obstacles=filter(lambda k: k[0]<src_points[i][0], points_above)
-                    if len(obstacles):
-                        continue
-                    obstacles=filter(lambda k: k[0]>src_points[i][0], points_below)
-                    if len(obstacles):
-                        continue
-                    src_accumulator[i]+=1
-                    dst_accumulator[j]+=1
-                else:
-                    slope=(dst_points[j][1]-src_points[i][1])/(dst_points[j][0]-src_points[i][0])
-                    y_i=-slope*src_points[i][0]+src_points[i][1]
-                    obstacles=filter(lambda k: k[0]*slope+y_i>k[1], points_above)
-                    if len(obstacles):
-                        continue
-                    obstacles=filter(lambda k: k[0]*slope+y_i<k[1], points_below)
-                    if len(obstacles):
-                        continue
-                    src_accumulator[i]+=1
-                    dst_accumulator[j]+=1
-        if debug:
-            print '\tsrc_accumulator:', src_accumulator
-            print '\tdst_accumulator:', dst_accumulator
-        return (1.0-float(max(src_accumulator))/TILE_SAMPLE_COUNT, 1.0-float(max(dst_accumulator))/TILE_SAMPLE_COUNT)
+        self.fov=HexFOV(self.grid)
+    
+    def FOV(self, tile, radius):
+        self.fov.FOV(tile, radius)
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):

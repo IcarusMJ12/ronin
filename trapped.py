@@ -10,10 +10,13 @@ from objects import *
 import logging
 from random import Random
 import sys
+import profile
 
 #used by exit handler to quit the game
 def quit():
     pygame.display.quit()
+    print ctx.world.fov.cache_metrics
+    print ctx.world.fov.circles_considered
     sys.exit(0)
 
 #player and enemy turn phases to here
@@ -129,4 +132,4 @@ if __name__ == '__main__':
     tm=turns.TurnManager()
     tm.add(player_turn)
     tm.add(enemies_turn)
-    tm.run()
+    profile.run("tm.run()")
