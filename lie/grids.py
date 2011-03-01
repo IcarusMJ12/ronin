@@ -2,7 +2,8 @@ import pygame
 from pygame.rect import Rect
 import abc
 from objects import *
-from hexfov import HexFOV
+#from hexfov import HexFOV
+from fov import FOV
 import globals
 import math
 from exceptions import NotImplementedError
@@ -33,7 +34,8 @@ class Tile(pygame.sprite.DirtySprite):
         self._was_seen=True #TODO: False
         self._is_identified=False #TODO: make things work
         self._unseen_image=globals.font.render('',True,(255,255,255))
-        self._cover=(1,1) #(this tile's, player's)
+        #self._cover=(1,1) #(this tile's, player's)
+        self._cover=1
         self.d2=0 #distance squared
         self.image=self._unseen_image
         self._real_image=None
@@ -43,8 +45,10 @@ class Tile(pygame.sprite.DirtySprite):
     #this function has been hijacked to showcase FOV
     def _computeTileColor(self):
         gray=globals.darkest_gray
-        g=(gray+(1.0-gray)*(1.0-self._cover[0]))
-        r=(gray+(1.0-gray)*(1.0-self._cover[1]))
+        g=1.0
+        if self._cover>0:
+            g=gray
+        r=0.8
         b=0
         if self.d2:
             b=(1.0/math.pow(self.d2,0.25))
@@ -54,7 +58,7 @@ class Tile(pygame.sprite.DirtySprite):
         if(val==self._cover):
             return
         self._cover=val
-        if(val[0]<1):
+        if(val<1):
             self._was_seen=True
             #self.image=self._real_image
             c=self._computeTileColor()
@@ -83,13 +87,13 @@ class Tile(pygame.sprite.DirtySprite):
         self._actor=val
         if(val):
             self._real_image=globals.font.render(self.actor.symbol,True,(255,255,255))
-            if(self._cover[0]<1):
+            if(self._cover<1):
                 #self.image=self._real_image
                 self.image=globals.font.render(self.actor.symbol,True,self._computeTileColor())
                 self.dirty=1
         elif(self.terrain):
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
-            if(self._cover[0]<1):
+            if(self._cover<1):
                 self.image=globals.font.render(self.terrain.symbol,True,self._computeTileColor())
                 #self.image=self._real_image
                 self.dirty=1
@@ -104,7 +108,7 @@ class Tile(pygame.sprite.DirtySprite):
         if(self.actor is None or val.isPassableBy(self.actor)):
             self._terrain=val
             self._real_image=globals.font.render(self.terrain.symbol,True,(255,255,255))
-            if(self._cover[0]<1):
+            if(self._cover<1):
                 self.image=self._real_image
                 self.dirty=1
             elif(self._was_seen):
@@ -179,10 +183,15 @@ class PseudoHexGrid(Grid):
         super(PseudoHexGrid, self).__init__(level, width, height)
         self.grid=[[PseudoHexTile(Location(level,i,j)) for j in xrange(height)] for i in xrange(width)]
         self.view=GridView(Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset))),self.getTiles())
-        self.fov=HexFOV(self.grid)
+        self.fov=FOV()
     
     def FOV(self, tile, radius):
-        self.fov.FOV(tile, radius)
+        me=(tile.location.x,tile.location.y,tile.blocksLOS())
+        world=[(tile.location.x,tile.location.y,tile.blocksLOS()) for tile in self.getTiles()]
+        ret=self.fov.calculateHexFOV(me,world)
+        for r in ret:
+            self.grid[r[0][0]][r[0][1]].cover=r[1]
+            self.grid[r[0][0]][r[0][1]].d2=r[2]
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):

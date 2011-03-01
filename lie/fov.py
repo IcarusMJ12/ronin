@@ -7,9 +7,6 @@ SQRT3_4=sqrt(3.0/4)
 
 __all__=['LinePair', 'Locus','FOV']
 
-class debug(object):
-    trace=False
-
 def _clockwiseCompare(p1, p2):
     """Compares items by clockwise direction starting at the positive y axis.
     y axis is used because it is vertically aligned."""
@@ -43,15 +40,18 @@ class LinePair(object):
         self.culprits=[] #debug info
         self.id=LinePair.id
         LinePair.id+=1
+        #print "Created linepair ",self.id
     
     def __repr__(self):
         if self.is_world:
             return "LinePair<world>"
         else:
-            r="LinePair<"+str(self.id)
+            r="LinePair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
             if self.is_reflex:
                 r+=" (ref)"
             r+=">"
+            for c in self.culprits:
+                r+="\n\t"+c.__repr__()
             return r
 
     def __cmp__(self, other):
@@ -61,11 +61,12 @@ class LinePair(object):
     def mergeLocus(self, locus, line):
         """Updates the LinePair to contain the LOS-blocking locus provided."""
         self.culprits.append(locus)
+        #print "Merging locus",locus,line,"into linepair",self.id
         if line==3:
             self.is_world=True
             return self
         if line==1:
-            if LinePair._cross(self.right[0],self.left[0],locus.n) > 0:
+            if LinePair._cross(self.right[0],self.left[0],locus.n) < 0:
                 self.is_reflex=True
             self.left=(locus.n, locus.coord+locus.n)
         else:
@@ -79,6 +80,7 @@ class LinePair(object):
         """Merges two LinePairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
+        #print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
         if lp1==lp2:
             ret=LinePair(None,None)
             ret.is_world=True
@@ -90,14 +92,16 @@ class LinePair(object):
         if lp1_line==1:
             right=lp1.right
             left=lp2.left
-            if LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) > 0:
+            if LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) < 0:
                 reflex=True
         else:
             left=lp1.left
             right=lp2.right
-            if LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) > 0:
+            if LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) < 0:
                 reflex=True
-        return LinePair(left,right,reflex)
+        lp=LinePair(left,right,reflex)
+        lp.culprits=lp1.culprits
+        lp.culprits.extend(lp2.culprits)
 
     @classmethod
     def _unitCircleMetric(self,a,b):
@@ -111,23 +115,19 @@ class LinePair(object):
         p1=(line[0][0]-x,line[0][1]-y)
         p2=(line[1][0]-x,line[1][1]-y)
         m1=LinePair._unitCircleMetric(p1,p1)
-        if debug.trace:
-            print m1
         if m1 <= 0: #p1 is inside circle, hence line intersects
             return True
         m2=LinePair._unitCircleMetric(p2,p2)
-        if debug.trace:
-            print m2
         if m2 <= 0: #p2 is inside circle, hence line intersects
             return True
         m12=LinePair._unitCircleMetric(p1,p2)
-        if debug.trace:
-            print m12
         #if m12 > 0: #points are on the same side of circle, so cannot intersect
         #   return False
         #compute the discriminant. >0 -> roots are real -> intersects
         #not testing for equality (tangent line) as our "unit" circles are already larger than most
-        if m12*m12 - m1*m2 > 0: 
+        discriminant=m12*m12 - m1*m2
+        if discriminant > 0: 
+            #print sqrt(discriminant)/(m12*m12)
             return True
         return False
 
@@ -135,20 +135,16 @@ class LinePair(object):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
         #TODO: compute actual cover
         if(self.is_world):
-            if debug.trace:
-                print "\t\t\t","point in world"
             return (1.0,0)
         if not self.is_reflex and LinePair._cross(self.left[0],self.right[0], l.coord)<0:
-            if debug.trace:
-                print "\t\t\t","point is below the linepair"
             return (0.0,0)
         left=LinePair._intersectsCircle(self.left, l.coord)
         right=LinePair._intersectsCircle(self.right, l.coord)
-        if debug.trace:
-            print "\t\t\t",left, right
         if left:
-            if right: #returning tuple for cover, in case one of them is fresh and will be disregarded
-                return((0.25,0.25),3)
+            if right:
+                if self.is_reflex: #returning tuple for cover, in case one of them is fresh and will be disregarded
+                    return((0.25,0.25),3)
+                return (1.0,0)
             return (0.25,1)
         if right:
             return (0.25,2)
@@ -234,35 +230,37 @@ class FOV(object):
         lp_index=0
         len_linepairs=len(linepairs)
         while True:
+            assert(sum([lp[0].is_reflex for lp in linepairs])<2)
+            wc=sum([lp[0].is_world for lp in linepairs])
+            if wc:
+                assert(wc==1)
+                assert(len_linepairs==1)
             try:
                 l=loci.pop()
-                if l.id==(5,6) or l.id==(4,5):
-                    debug.trace=True
-                    print l
-                else:
-                    debug.trace=False
             except IndexError:
                 break
+            #print l, len_linepairs
             if l.d_2 > d_2:
                 d_2=l.d_2
                 for x in linepairs:
                     x[1]=0 #distance increase means all lines are now 'stale'
             lp_index=0 #start with the 'leftmost' linepair again
+            processed=False
             while lp_index<len_linepairs:
                 (lp1, fresh1)=linepairs[lp_index]
                 (cover1, line1) = lp1.calculateCover(l)
-                if debug.trace:
-                    print '\t',lp1,fresh1
-                    print '\t',cover1,line1
-                    print '\t\t',lp1.culprits
-                if line1==3: #special case: reflex angle intersecting same locus from two different sides
+                #print 'lp1:',lp1
+                #print 'fresh1:',fresh1,'cover1:',cover1,'line1:',line1
+                if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
                     l.cover=cover1*(not fresh1&1)+cover2*(not fresh1&2)
                     if l.blocksLOS:
                         lp1.is_world=True
+                    processed=True
                     break
                 if cover1 == 1: #guaranteed to be stale line by nature of the algorithm, so no point checking
                     l.cover=cover1
+                    processed=True
                     break
                 if cover1>0: #jackpot?
                     if line1==1: #as we're going clockwise, only possible cover; also left line cannot be fresh (!)
@@ -275,6 +273,9 @@ class FOV(object):
                         if len_linepairs>1:
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
+                        #print 'lp2:',lp2
+                        #print 'fresh2:',fresh2,'cover2:',cover2,'line2:',line2
+                        assert(line2!=line1)
                         l.cover=cover1*(not fresh1&2)+cover2*(not fresh2&1)
                         if l.blocksLOS:
                             if cover2:
@@ -286,9 +287,10 @@ class FOV(object):
                             else:
                                 lp1.mergeLocus(l, line1)
                                 linepairs[lp_index][1]=line1
+                    processed=True
                     break #if cover1>0
                 lp_index+=1
-            if l.cover==0 and l.blocksLOS:
+            if not processed and l.cover==0 and l.blocksLOS:
                 linepairs.append([l.toLinePair(),3])
                 len_linepairs+=1
                 linepairs.sort(reverse=True)

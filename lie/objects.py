@@ -33,7 +33,7 @@ class Floor(Terrain):
     """A floor that can be walked on."""
     def __init__(self):
         super(Floor, self).__init__(Actor)
-        self.symbol='.'
+        self.symbol=u'\u00b7'
 
 class Wall(Terrain):
     """An impassable wall."""

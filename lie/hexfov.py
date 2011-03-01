@@ -9,7 +9,7 @@ class HexFOV(object):
         r=sqrt(3.0/4)
         rr=1.0/(4*r)
         #rotation matrix in hex, T*R*Tinv, where T transforms coordinates to hex, R rotates, Tinv inverts coordinate transform
-        self.TILE_SAMPLE_COUNT=5
+        self.TILE_SAMPLE_COUNT=16
         self.R90=ar([[-r+rr,r+rr,0],[-r-rr,r-rr,0],[0,0,1]])
         self._cache={}
         self.cache_metrics=[0,0] #hits, misses

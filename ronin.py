@@ -12,11 +12,14 @@ from random import Random
 import sys
 import profile
 
+#import psyco
+#psyco.full()
+
 #used by exit handler to quit the game
 def quit():
     pygame.display.quit()
-    print ctx.world.fov.cache_metrics
-    print ctx.world.fov.circles_considered
+    #print ctx.world.fov.cache_metrics
+    #print ctx.world.fov.circles_considered
     sys.exit(0)
 
 #player and enemy turn phases to here
