@@ -30,18 +30,24 @@ def _clockwiseCompare(p1, p2):
 
 class LinePair(object):
     id=1
+    EPSILON=0.01 #woo yay, trying to compensate for floating point computation inaccuracies
 
     """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
     def __init__(self, left, right, reflex=False):
-        self.left=left  #left line, as a pair of points
-        self.right=right #right line, as a pair of points
+        self.left=ar(left)  #left line, as a pair of points
+        self.right=ar(right) #right line, as a pair of points
+        self.left_len=self._calculateLength(self.left)
+        self.right_len=self._calculateLength(self.right)
         self.is_reflex=reflex #when considered from the intersection, whether the line pair makes a reflex angle (>pi)
         self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
         self.culprits=[] #debug info
         self.id=LinePair.id
         LinePair.id+=1
-        #print "Created linepair ",self.id
+        print "Created linepair ",self.id
     
+    def _calculateLength(self, vector):
+        return sqrt(sum(pow(vector[1]-vector[0],2)))
+
     def __repr__(self):
         if self.is_world:
             return "LinePair<world>"
@@ -61,7 +67,7 @@ class LinePair(object):
     def mergeLocus(self, locus, line):
         """Updates the LinePair to contain the LOS-blocking locus provided."""
         self.culprits.append(locus)
-        #print "Merging locus",locus,line,"into linepair",self.id
+        print "Merging locus",locus,line,"into linepair",self.id
         if line==3:
             self.is_world=True
             return self
@@ -69,10 +75,12 @@ class LinePair(object):
             if LinePair._cross(self.right[0],self.left[0],locus.n) < 0:
                 self.is_reflex=True
             self.left=(locus.n, locus.coord+locus.n)
+            self.left_len=self._calculateLength(self.left)
         else:
             if LinePair._cross(self.left[0],self.right[0],-locus.n) > 0:
                 self.is_reflex=True
             self.right=(-locus.n, locus.coord-locus.n)
+            self.right_len=self._calculateLength(self.right)
         return self
     
     @classmethod
@@ -80,7 +88,7 @@ class LinePair(object):
         """Merges two LinePairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
-        #print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
+        print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
         if lp1==lp2:
             ret=LinePair(None,None)
             ret.is_world=True
@@ -137,9 +145,41 @@ class LinePair(object):
         if(self.is_world):
             return (1.0,0)
         if not self.is_reflex and LinePair._cross(self.left[0],self.right[0], l.coord)<0:
-            return (0.0,0)
-        left=LinePair._intersectsCircle(self.left, l.coord)
-        right=LinePair._intersectsCircle(self.right, l.coord)
+            return (-1,0)
+        #left=LinePair._intersectsCircle(self.left, l.coord)
+        #right=LinePair._intersectsCircle(self.right, l.coord)
+        right=LinePair._cross(self.right[0],self.right[1],l.coord-self.right[0]) #negative if locus entirely to the right
+        right/=self.right_len
+        if not self.is_reflex:
+            if right < -LinePair.EPSILON:
+                return (-1,0)
+            if right < LinePair.EPSILON:
+                return (0,2)
+        left=LinePair._cross(self.left[0],self.left[1],l.coord-self.left[0]) #positive if locus is entirely to the left
+        left/=self.left_len
+        if (not self.is_reflex or right < -LinePair.EPSILON):
+            if left > LinePair.EPSILON:
+                return (-1,0)
+            elif left > -LinePair.EPSILON:
+                return (0,1)
+        if self.is_reflex and right < LinePair.EPSILON:
+            if left > LinePair.EPSILON:
+                return (0,2)
+            if left > -LinePair.EPSILON:
+                return (0,3)
+        #OK, we've established that the locus is at least partially obscured
+        left=LinePair._cross(self.left[0],self.left[1],l.coord+self.left[0]) #amount by which locus is uncovered
+        left/=self.left_len
+        right=-LinePair._cross(self.right[0],self.right[1],l.coord+self.right[0]) #amount by which locus is uncovered
+        right/=self.right_len
+        if left < 0 and right < 0:
+            return (1.0,0)
+        if right < 0:
+            return (1.0-left, 1)
+        if left < 0:
+            return (1.0-right, 2)
+        return ((1.0-left, 1.0-right),3)
+        """
         if left:
             if right:
                 if self.is_reflex: #returning tuple for cover, in case one of them is fresh and will be disregarded
@@ -152,6 +192,7 @@ class LinePair(object):
         if not p:
             return (1.0,0)
         return (0.0,0)
+        """
     
     def _getPosition(self, point):
         """Returns 1, 0, or -1, if the point is left, between, or right of the line pair, respectively."""
@@ -253,8 +294,10 @@ class FOV(object):
                 #print 'fresh1:',fresh1,'cover1:',cover1,'line1:',line1
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
-                    l.cover=cover1*(not fresh1&1)+cover2*(not fresh1&2)
-                    if l.blocksLOS:
+                    l.cover=max(cover1,0)*(not fresh1&1)+max(cover2,0)*(not fresh1&2)
+                    if l.cover>1.0:
+                        l.cover=2.0-l.cover
+                    if l.blocksLOS and lp1.is_reflex:
                         lp1.is_world=True
                     processed=True
                     break
@@ -262,7 +305,7 @@ class FOV(object):
                     l.cover=cover1
                     processed=True
                     break
-                if cover1>0: #jackpot?
+                if cover1>=0: #jackpot?
                     if line1==1: #as we're going clockwise, only possible cover; also left line cannot be fresh (!)
                         l.cover=cover1
                         if l.blocksLOS:
@@ -276,9 +319,9 @@ class FOV(object):
                         #print 'lp2:',lp2
                         #print 'fresh2:',fresh2,'cover2:',cover2,'line2:',line2
                         assert(line2!=line1)
-                        l.cover=cover1*(not fresh1&2)+cover2*(not fresh2&1)
+                        l.cover=cover1*(not fresh1&2)+(max(cover2,0)*(not fresh2&1))
                         if l.blocksLOS:
-                            if cover2:
+                            if cover2>=0:
                                 lp=LinePair.mergePairsByLocus((lp1, line1), (lp2, line2))
                                 lp.culprits.append(l)
                                 linepairs[lp_index]=[lp,fresh1|fresh2]

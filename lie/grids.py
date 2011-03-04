@@ -46,9 +46,7 @@ class Tile(pygame.sprite.DirtySprite):
     def _computeTileColor(self):
         gray=globals.darkest_gray
         g=1.0
-        if self._cover>0:
-            g=gray
-        r=0.8
+        r=self._cover
         b=0
         if self.d2:
             b=(1.0/math.pow(self.d2,0.25))
@@ -190,8 +188,9 @@ class PseudoHexGrid(Grid):
         world=[(tile.location.x,tile.location.y,tile.blocksLOS()) for tile in self.getTiles()]
         ret=self.fov.calculateHexFOV(me,world)
         for r in ret:
-            self.grid[r[0][0]][r[0][1]].cover=r[1]
             self.grid[r[0][0]][r[0][1]].d2=r[2]
+            assert(r[1]<=1.0)
+            self.grid[r[0][0]][r[0][1]].cover=r[1]
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):
