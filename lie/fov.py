@@ -34,19 +34,36 @@ class LinePair(object):
 
     """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
     def __init__(self, left, right, reflex=False):
-        self.left=ar(left)  #left line, as a pair of points
-        self.right=ar(right) #right line, as a pair of points
-        self.left_len=self._calculateLength(self.left)
-        self.right_len=self._calculateLength(self.right)
+        self.left=left  #left line, as a pair of points
+        self.right=right #right line, as a pair of points
         self.is_reflex=reflex #when considered from the intersection, whether the line pair makes a reflex angle (>pi)
         self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
         self.culprits=[] #debug info
         self.id=LinePair.id
         LinePair.id+=1
-        print "Created linepair ",self.id
+        #print "Created linepair ",self.id
     
-    def _calculateLength(self, vector):
-        return sqrt(sum(pow(vector[1]-vector[0],2)))
+    def _normalize(self, segment):
+        seg=ar(segment)
+        vector=seg[1]-seg[0]
+        vector/=sqrt(sum(pow(vector,2)))
+        seg[1]=seg[0]+vector
+        return seg
+
+    def setLeft(self, left):
+        self._left=self._normalize(left)
+    
+    def getLeft(self):
+        return self._left
+
+    def setRight(self, right):
+        self._right=self._normalize(right)
+    
+    def getRight(self):
+        return self._right
+
+    left=property(getLeft, setLeft)
+    right=property(getRight, setRight)
 
     def __repr__(self):
         if self.is_world:
@@ -67,20 +84,18 @@ class LinePair(object):
     def mergeLocus(self, locus, line):
         """Updates the LinePair to contain the LOS-blocking locus provided."""
         self.culprits.append(locus)
-        print "Merging locus",locus,line,"into linepair",self.id
+        #print "Merging locus",locus,line,"into linepair",self.id
         if line==3:
             self.is_world=True
             return self
         if line==1:
-            if LinePair._cross(self.right[0],self.left[0],locus.n) < 0:
+            if LinePair._cross(self.right[0],self.left[0],locus.n) <= 0:
                 self.is_reflex=True
             self.left=(locus.n, locus.coord+locus.n)
-            self.left_len=self._calculateLength(self.left)
         else:
-            if LinePair._cross(self.left[0],self.right[0],-locus.n) > 0:
+            if LinePair._cross(self.left[0],self.right[0],-locus.n) >= 0:
                 self.is_reflex=True
             self.right=(-locus.n, locus.coord-locus.n)
-            self.right_len=self._calculateLength(self.right)
         return self
     
     @classmethod
@@ -88,28 +103,26 @@ class LinePair(object):
         """Merges two LinePairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
-        print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
-        if lp1==lp2:
-            ret=LinePair(None,None)
-            ret.is_world=True
-            return ret
+        #print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
+        assert(lp1!=lp2)
         right=None
         left=None
-        reflex=False
+        reflex=(lp1.is_reflex or lp2.is_reflex)
         assert(lp1_line!=lp2_line)
         if lp1_line==1:
             right=lp1.right
             left=lp2.left
-            if LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) < 0:
+            if not reflex and LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= 0:
                 reflex=True
         else:
             left=lp1.left
             right=lp2.right
-            if LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) < 0:
+            if not reflex and LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= 0:
                 reflex=True
         lp=LinePair(left,right,reflex)
         lp.culprits=lp1.culprits
         lp.culprits.extend(lp2.culprits)
+        return lp
 
     @classmethod
     def _unitCircleMetric(self,a,b):
@@ -149,50 +162,46 @@ class LinePair(object):
         #left=LinePair._intersectsCircle(self.left, l.coord)
         #right=LinePair._intersectsCircle(self.right, l.coord)
         right=LinePair._cross(self.right[0],self.right[1],l.coord-self.right[0]) #negative if locus entirely to the right
-        right/=self.right_len
+        if right > -LinePair.EPSILON and right < LinePair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
+            right=0
+        if right > 1.0-LinePair.EPSILON and right < 1.0+LinePair.EPSILON:
+            right=1
         if not self.is_reflex:
-            if right < -LinePair.EPSILON:
+            if right < 0:
                 return (-1,0)
-            if right < LinePair.EPSILON:
-                return (0,2)
-        left=LinePair._cross(self.left[0],self.left[1],l.coord-self.left[0]) #positive if locus is entirely to the left
-        left/=self.left_len
-        if (not self.is_reflex or right < -LinePair.EPSILON):
-            if left > LinePair.EPSILON:
-                return (-1,0)
-            elif left > -LinePair.EPSILON:
-                return (0,1)
-        if self.is_reflex and right < LinePair.EPSILON:
-            if left > LinePair.EPSILON:
-                return (0,2)
-            if left > -LinePair.EPSILON:
-                return (0,3)
-        #OK, we've established that the locus is at least partially obscured
-        left=LinePair._cross(self.left[0],self.left[1],l.coord+self.left[0]) #amount by which locus is uncovered
-        left/=self.left_len
-        right=-LinePair._cross(self.right[0],self.right[1],l.coord+self.right[0]) #amount by which locus is uncovered
-        right/=self.right_len
-        if left < 0 and right < 0:
-            return (1.0,0)
-        if right < 0:
-            return (1.0-left, 1)
-        if left < 0:
-            return (1.0-right, 2)
-        return ((1.0-left, 1.0-right),3)
-        """
-        if left:
-            if right:
-                if self.is_reflex: #returning tuple for cover, in case one of them is fresh and will be disregarded
-                    return((0.25,0.25),3)
+            if right < 1:
+                return (right, 2)
+            if right == 1:
                 return (1.0,0)
-            return (0.25,1)
-        if right:
-            return (0.25,2)
-        p=self._getPosition(l.coord)
-        if not p:
+        left=-LinePair._cross(self.left[0],self.left[1],l.coord-self.left[0]) #negative if locus is entirely to the left
+        if left > -LinePair.EPSILON and left < LinePair.EPSILON:
+            left=0
+        if left > 1.0-LinePair.EPSILON:
+            left=1
+        if not self.is_reflex:
+            if left < 0:
+                return (-1,0)
+            if left < 1:
+                return (left, 1)
+            if left == 1:
+                return (1.0,0)
+        right=min(right,1) #max cover is 100%
+        #i guess we're a reflex angle, so things get harder...
+        if left < 0 and right < 0:
+            return (-1,0)
+        if(self.left[0].dot(self.right[0])>0):  #angle between normals between -90 and 90
+            if left == 1 and right == 1:
+                return (1.0, 0)
+            if left > right:
+                return (left, 1)
+            return (right, 2)
+        if left == 1 or right == 1:
             return (1.0,0)
-        return (0.0,0)
-        """
+        if left>=0:
+            if right>=0:
+                return ((left,right),3)
+            return (left,1)
+        return (right,2)
     
     def _getPosition(self, point):
         """Returns 1, 0, or -1, if the point is left, between, or right of the line pair, respectively."""
@@ -262,7 +271,7 @@ class FOV(object):
         d_2=0
         ret=[]
         #process origin, i.e. myself in the world
-        while loci[-1].d_2==0:
+        while len(loci) and loci[-1].d_2==0:
             l=loci.pop()
             l.cover=0.0 #an object cannot provide cover for itself
             ret.append(l)
@@ -301,24 +310,29 @@ class FOV(object):
                         lp1.is_world=True
                     processed=True
                     break
-                if cover1 == 1: #guaranteed to be stale line by nature of the algorithm, so no point checking
+                if cover1 == 1: #guaranteed to be stale line by nature of the algorithm (i.e. adjacencies at same distance cannot completely occlude each other)
                     l.cover=cover1
                     processed=True
                     break
                 if cover1>=0: #jackpot?
-                    if line1==1: #as we're going clockwise, only possible cover; also left line cannot be fresh (!)
-                        l.cover=cover1
+                    if line1==1:
+                        if not (fresh1&1):
+                            l.cover=cover1
                         if l.blocksLOS:
                             lp1.mergeLocus(l,line1)
-                            linepairs[lp_index][1]=line1
+                            linepairs[lp_index][1]|=line1
                     else: #line1==2
-                        (lp2,fresh2,cover2,line2)=(None,0,0,0)
+                        (lp2,fresh2,cover2,line2)=(None,0,-1,0)
                         if len_linepairs>1:
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
+                        #print l, len_linepairs
+                        #print 'lp1:',lp1
+                        #print 'fresh1:',fresh1,'cover1:',cover1,'line1:',line1
                         #print 'lp2:',lp2
                         #print 'fresh2:',fresh2,'cover2:',cover2,'line2:',line2
                         assert(line2!=line1)
+                        assert(line2!=3)
                         l.cover=cover1*(not fresh1&2)+(max(cover2,0)*(not fresh2&1))
                         if l.blocksLOS:
                             if cover2>=0:
@@ -329,31 +343,266 @@ class FOV(object):
                                 len_linepairs-=1
                             else:
                                 lp1.mergeLocus(l, line1)
-                                linepairs[lp_index][1]=line1
+                                linepairs[lp_index][1]|=line1
                     processed=True
                     break #if cover1>0
                 lp_index+=1
             if not processed and l.cover==0 and l.blocksLOS:
                 linepairs.append([l.toLinePair(),3])
                 len_linepairs+=1
-                linepairs.sort(reverse=True)
+                linepairs.sort()
             ret.append(l)
         (x,y)=(me[0],me[1])
         return [((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret]
 
 if __name__ == '__main__':
-    f=FOV()
-    world=[]
-    for i in xrange(5):
-        for j in xrange(5):
-            if i==1 and j==2:
-                world.append([i,j,True])
-            elif i==2 and j==3:
-                world.append([i,j,True])
+    import unittest
+    import copy
+
+    class FOVTest(unittest.TestCase):
+        """Performs a series of tests by running FOV's calculateHexFOV function on a 5x5 world with different scenarios."""
+
+        def setUp(self):
+            """Initializes FOV and sets up base_world and cover constants."""
+            self.fov=FOV()
+            self.base_world=[
+                    [0,0,0], [1,0,0], [2,0,0], [3,0,0], [4,0,0],
+                    [0,1,0], [1,1,0], [2,1,0], [3,1,0], [4,1,0],
+                    [0,2,0], [1,2,0], [2,2,0], [3,2,0], [4,2,0],
+                    [0,3,0], [1,3,0], [2,3,0], [3,3,0], [4,3,0],
+                    [0,4,0], [1,4,0], [2,4,0], [3,4,0], [4,4,0],
+                    ]
+            self.almost_cover=-SQRT3_4+1 #tile edge shaving
+
+        def _checkResult(self, result, *args):
+            """Verifies that the tiles returned have correct cover.
+            Accepts the result of calculateHexFOV as the first parameter, followed by location_tuples, cover_value in unpacked form.
+            location_tuples must be lists, individual tuples, or the special parameter 'None' signifying all otherwise unmatched locations.
+            e.g. _checkResult(result, [(1,2),(3,4)], 1, (2,4), 0.5, None, 0)"""
+            tilesets,cover_values=list(args[0::2]),list(args[1::2])
+            default_cover=None
+            try:
+                idx=tilesets.index(None)
+                tilesets.pop(idx)
+                default_cover=cover_values.pop(idx)
+            except ValueError:
+                pass
+            l=len(tilesets)
+            assert(l==len(cover_values))
+            for i in xrange(l):
+                if tilesets[i] and not isinstance(tilesets[i],list):
+                    tilesets[i]=[tilesets[i]]
+            for i in result:
+                found=False
+                for j in xrange(l):
+                    if tilesets[j] and i[0] in tilesets[j]:
+                        self._assertEqualCover(i,cover_values[j])
+                        found=True
+                        break
+                if not found and default_cover is not None:
+                    self._assertEqualCover(i,default_cover)
+
+        def _assertEqualCover(self, tile, cover):
+            """Tests that the tile's cover is exactly 1 or 0 if the cover is 1 or 0, or else is equal to the value of cover to within 12 decimal places."""
+            if cover>0 or cover <1:
+                self.assertAlmostEqual(tile[1], cover, 12, "Expected cover "+str(cover)+" for "+tile[0].__repr__()+", got "+tile[1].__repr__())
             else:
-                world.append([i,j,False])
-    result=f.calculateHexFOV([1,1,0],world)
-    ans=ar([[0]*5]*5)
-    for r in result:
-        ans[r[0][0],r[0][1]]=r[1]
-    print ans
+                self.assertEqual(tile[1], cover, "Expected cover "+str(cover)+" for "+tile[0].__repr__()+", got "+tile[1].__repr__())
+
+        def test01_Singular(self):
+            """Performing basic sanity check"""
+            self.assertEqual(self.fov.calculateHexFOV([0,0],[[0,0,0]]),[((0,0),0,0)])
+
+        def test02_Distance(self):
+            """Verifying that FOV computes distances correctly"""
+            me=(2,2)
+            world=self.base_world
+            res=self.fov.calculateHexFOV(me,world)
+            for i in res:
+                self.assertEqual(i[2],pow(i[0][0]-me[0],2)+pow(i[0][1]-me[1],2)-(i[0][0]-me[0])*(i[0][1]-me[1]))
+
+        def test03_CardinalE(self):
+            """Testing East wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(4,2),1,[(4,3),(3,1),(4,1)],self.almost_cover,None,0)
+
+        def test04_CardinalN(self):
+            """Testing North wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(2,4),1,[(1,3),(1,4),(3,4)],self.almost_cover,None,0)
+
+        def test05_CardinalW(self):
+            """Testing West wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[11][2]=1 #(1,2) W
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(0,2),1,[(0,1),(1,3),(0,3)],self.almost_cover,None,0)
+
+        def test06_CardinalS(self):
+            """Testing South wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[7][2]=1 #(2,1) S
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(2,0),1,[(1,0),(3,1),(3,0)],self.almost_cover,None,0)
+
+        def test07_DiagonalNE(self):
+            """Testing Northeast wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[18][2]=1 #(3,3) NE
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(4,4),1,[(4,3),(3,4)],self.almost_cover,None,0)
+    
+        def test08_DiagonalSW(self):
+            """Testing Southwest wall"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[6][2]=1 #(1,1) SW
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(0,0),1,[(0,1),(1,0)],self.almost_cover,None,0)
+
+        def test09_1_3(self):
+            """Testing wall at (-1,1) to character"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[16][2]=1 #(1,3)
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(0,4),1,[(0,3),(1,4)],0.5,None,0)
+
+        def test10_EandN(self):
+            """Testing East and North walls (not adjacent)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            world[17][2]=1 #(2,3) N
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(4,2),(2,4)],1,[(4,3),(3,1),(4,1),(1,3),(1,4),(3,4)],self.almost_cover,None,0)
+
+        def test11_NandSW(self):
+            """Testing North and Southwest walls (not adjacent)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            world[6][2]=1 #(1,1) SW
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(2,4),(0,0)],1,[(1,3),(1,4),(3,4),(0,1),(1,0)],self.almost_cover,None,0)
+
+        def test12_EandW(self):
+            """Testing East and West walls (opposite sides)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            world[11][2]=1 #(1,2) W
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(4,2),(0,2)],1,[(4,3),(3,1),(4,1),(0,1),(1,3),(0,3)],self.almost_cover,None,0)
+
+        def test13_EandNE(self):
+            """Testing East and Northeast walls (adjacent)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            world[18][2]=1 #(3,3) NE
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(4,2),(4,3),(4,4)],1,[(3,1),(4,1),(3,4)],self.almost_cover,None,0)
+
+        def test14_NandW(self):
+            """Testing North and West walls (adjacent)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            world[11][2]=1 #(1,2) W
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(0,2),(0,3),(0,4),(1,3),(1,4),(2,4)],1,[(0,1),(3,4)],self.almost_cover,None,0)
+
+        def test15_Nand1_3(self):
+            """Testing walls at (0,1) [East] and (-1,1) to character (adjacent)"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            world[16][2]=1 #(1,3)
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(2,4),(1,4),(0,4)],1,(0,3),0.5,[(1,3),(3,4)],self.almost_cover,None,0)
+
+        def test16_Wand1_3(self):
+            """Testing walls at (-1,0) [West] and (-1,1) to character (adjacent)"""
+            me=(2,2)
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[11][2]=1 #(1,2) W
+            world[16][2]=1 #(1,3)
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(0,2),(0,3),(0,4)],1,(1,4),0.5,[(1,3),(0,1)],self.almost_cover,None,0)
+
+        def test17_NN(self):
+            """Testing two blocking tiles in a line"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            world[22][2]=1 #(2,4) NN
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,(2,4),1,[(1,3),(1,4),(3,4)],self.almost_cover,None,0)
+
+        def test18_NandWand1_3(self):
+            """Testing a fully contained tile"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[17][2]=1 #(2,3) N
+            world[11][2]=1 #(1,2) W
+            world[16][2]=1 #(1,3)
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(0,2),(0,3),(0,4),(1,3),(1,4),(2,4)],1,[(0,1),(3,4)],self.almost_cover,None,0)
+
+        def test19_PiX1(self):
+            """Trying a North-facing 180 degree angle from the X-axis"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            world[18][2]=1 #(3,3) NE
+            world[17][2]=1 #(2,3) N
+            world[11][2]=1 #(1,2) W
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(0,0),(1,0),(1,1),(2,0),(2,1),(2,2),(3,0),(4,0)],0,[(0,1),(3,1),(4,1)],self.almost_cover,None,1)
+
+        def test20_PiX2(self):
+            """Trying a South-facing 180 degree angle from the X-axis"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[13][2]=1 #(3,2) E
+            world[7][2]=1 #(2,1) S
+            world[6][2]=1 #(1,1) SW
+            world[11][2]=1 #(1,2) W
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(4,4),(3,4),(3,3),(2,4),(2,3),(2,2),(1,4),(0,4)],0,[(4,3),(1,3),(0,3)],self.almost_cover,None,1)
+
+        def test21_PiXY1(self):
+            """Trying an East-facing 180 degree angle from XY"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[18][2]=1 #(3,3) NE
+            world[13][2]=1 #(3,2) E
+            world[7][2]=1 #(2,1) S
+            world[6][2]=1 #(1,1) SW
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(0,2),(0,3),(0,4),(1,1),(1,2),(1,3),(1,4),(2,2),(2,3),(2,4)],0,[(0,1),(3,4)],self.almost_cover,None,1)
+
+        def test22_PiXY1(self):
+            """Trying a West-facing 180 degree angle from XY"""
+            me=(2,2)
+            world=copy.deepcopy(self.base_world)
+            world[18][2]=1 #(3,3) NE
+            world[17][2]=1 #(2,3) N
+            world[11][2]=1 #(1,2) W
+            world[6][2]=1 #(1,1) SW
+            res=self.fov.calculateHexFOV(me,world)
+            self._checkResult(res,[(4,2),(4,1),(4,0),(3,3),(3,2),(3,1),(3,0),(2,2),(2,1),(2,0)],0,[(4,3),(1,0)],self.almost_cover,None,1)
+
+    suite = unittest.TestLoader().loadTestsFromTestCase(FOVTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)
