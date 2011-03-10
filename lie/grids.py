@@ -51,7 +51,7 @@ class Tile(pygame.sprite.DirtySprite):
             b=(1.0/math.pow(self.d2,0.25))
         return (r*255,g*255,b*255)
 
-    def setCover(self,val):
+    def setCover(self,val): #TODO: Fix setter so that I will not burn in programmer hell
         #if(val==self._cover):
         #   return
         self._cover=val

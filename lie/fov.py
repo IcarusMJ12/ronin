@@ -299,7 +299,7 @@ class FOV(object):
                     logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
-                    l.cover=min(max(cover1,0.0)*(not fresh1&1)+max(cover2,0.0)*(not fresh1&2),1)
+                    l.cover=max(cover1,0.0)*(not fresh1&1)+max(cover2,0.0)*(not fresh1&2)
                     if l.blocksLOS and lp1.is_reflex:
                         lp1.is_world=True
                     processed=True
@@ -328,7 +328,7 @@ class FOV(object):
                             logging.error('lp2: '+str(lp2))
                             raise AssertionError("line1 == line2")
                         assert(line2!=3)
-                    l.cover=min(max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2)),1)
+                    l.cover=max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2))
                     if l.blocksLOS:
                         if cover2>=0:
                             lp=LinePair.mergePairsByLocus((lp1, line1), (lp2, line2))
