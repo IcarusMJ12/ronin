@@ -7,8 +7,7 @@ from fov import FOV
 import globals
 import math
 from exceptions import NotImplementedError
-import fractions
-import profile
+import logging
 
 TILE_SAMPLE_COUNT=16
 
@@ -47,14 +46,14 @@ class Tile(pygame.sprite.DirtySprite):
         gray=globals.darkest_gray
         g=1.0
         r=self._cover
-        b=0
+        b=1.0
         if self.d2:
             b=(1.0/math.pow(self.d2,0.25))
         return (r*255,g*255,b*255)
 
     def setCover(self,val):
-        if(val==self._cover):
-            return
+        #if(val==self._cover):
+        #   return
         self._cover=val
         if(val<1):
             self._was_seen=True
@@ -189,26 +188,29 @@ class PseudoHexGrid(Grid):
         ret=self.fov.calculateHexFOV(me,world)
         for r in ret:
             self.grid[r[0][0]][r[0][1]].d2=r[2]
-            assert(r[1]<=1.0)
+            if r[1]>1:
+                logging.error(str(me))
+                logging.error(str(r))
+                raise AssertionError("cover > 1")
             self.grid[r[0][0]][r[0][1]].cover=r[1]
 
 class GridView(pygame.sprite.RenderUpdates):
     def __init__(self,viewable_area,sprites,center=None):
         super(GridView, self).__init__()
-        print viewable_area
+        logging.info(str(viewable_area))
         self.viewport=globals.screen.subsurface(viewable_area)
         self._sprites=sprites
         self.add(sprites)
         (self.x,self.y)=(self.viewport.get_width()/2,self.viewport.get_height()/2)
-        print self.x, self.y
+        logging.info(str(self.x)+' '+str(self.y))
         if center:
             self.center(center)
     
     def center(self,center):
-        print center
+        logging.info(str(center))
         (x,y)=(center.x+center.w/2,center.y+center.h/2)
         (dx,dy)=(self.x-x,self.y-y)
-        print dx, dy
+        logging.info(str(dx)+' '+str(dy))
         self.move(dx,dy)
 
     def move(self,x,y):

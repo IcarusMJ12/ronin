@@ -1,3 +1,5 @@
+import logging
+
 class InputHandlerManager(object):
     def __init__(self, handler):
         self._input_handlers=[handler]
@@ -30,7 +32,7 @@ class InputHandler(object):
             mod_map = self.funcs[key]
         except KeyError:
             return (None,None,None)
-        print mod_map
+        logging.info(str(mod_map))
         for k,f in mod_map.items():
             match=True
             cum_mod=0

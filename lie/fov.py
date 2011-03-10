@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 from numpy import array as ar
 from math import sqrt
+import logging
+from exceptions import AssertionError
 
 SQRT3_4=sqrt(3.0/4)
-
+is_debug=False
 
 __all__=['LinePair', 'Locus','FOV']
 
@@ -30,7 +32,7 @@ def _clockwiseCompare(p1, p2):
 
 class LinePair(object):
     id=1
-    EPSILON=0.01 #woo yay, trying to compensate for floating point computation inaccuracies
+    EPSILON=0.001 #woo yay, trying to compensate for floating point computation inaccuracies
 
     """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
     def __init__(self, left, right, reflex=False):
@@ -41,7 +43,8 @@ class LinePair(object):
         self.culprits=[] #debug info
         self.id=LinePair.id
         LinePair.id+=1
-        #print "Created linepair ",self.id
+        if is_debug:
+            logging.debug("Created linepair "+str(self.id))
     
     def _normalize(self, segment):
         seg=ar(segment)
@@ -66,16 +69,15 @@ class LinePair(object):
     right=property(getRight, setRight)
 
     def __repr__(self):
+        r="LinePair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
         if self.is_world:
-            return "LinePair<world>"
-        else:
-            r="LinePair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
-            if self.is_reflex:
-                r+=" (ref)"
-            r+=">"
-            for c in self.culprits:
-                r+="\n\t"+c.__repr__()
-            return r
+            r+=" (W)"
+        elif self.is_reflex:
+            r+=" (ref)"
+        r+=">"
+        for c in self.culprits:
+            r+="\n\t"+str(c)
+        return r
 
     def __cmp__(self, other):
         """Sort by clockwise direction."""
@@ -84,7 +86,8 @@ class LinePair(object):
     def mergeLocus(self, locus, line):
         """Updates the LinePair to contain the LOS-blocking locus provided."""
         self.culprits.append(locus)
-        #print "Merging locus",locus,line,"into linepair",self.id
+        if is_debug:
+            logging.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
         if line==3:
             self.is_world=True
             return self
@@ -103,7 +106,8 @@ class LinePair(object):
         """Merges two LinePairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
-        #print "Merging linepairs ",lp1.id,lp1_line,"and",lp2.id,lp2_line
+        if is_debug:
+            logging.debug("Merging linepairs "+str(lp1.id)+' '+str(lp1_line)+" and "+str(lp2.id)+' '+str(lp2_line))
         assert(lp1!=lp2)
         right=None
         left=None
@@ -124,65 +128,32 @@ class LinePair(object):
         lp.culprits.extend(lp2.culprits)
         return lp
 
-    @classmethod
-    def _unitCircleMetric(self,a,b):
-        """Dot product minus r^2."""
-        return a[0]*b[0]+a[1]*b[1]-0.251 #my unit circle is a little bigger than average (is what she said)
-
-    @classmethod
-    def _intersectsCircle(self,line,circle):
-        """Returns True if a given line intersects a circle, False otherwise."""
-        (x,y)=circle
-        p1=(line[0][0]-x,line[0][1]-y)
-        p2=(line[1][0]-x,line[1][1]-y)
-        m1=LinePair._unitCircleMetric(p1,p1)
-        if m1 <= 0: #p1 is inside circle, hence line intersects
-            return True
-        m2=LinePair._unitCircleMetric(p2,p2)
-        if m2 <= 0: #p2 is inside circle, hence line intersects
-            return True
-        m12=LinePair._unitCircleMetric(p1,p2)
-        #if m12 > 0: #points are on the same side of circle, so cannot intersect
-        #   return False
-        #compute the discriminant. >0 -> roots are real -> intersects
-        #not testing for equality (tangent line) as our "unit" circles are already larger than most
-        discriminant=m12*m12 - m1*m2
-        if discriminant > 0: 
-            #print sqrt(discriminant)/(m12*m12)
-            return True
-        return False
-
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
         #TODO: compute actual cover
         if(self.is_world):
-            #print "We are world!"
+            if is_debug:
+                logging.debug("We are world!")
             return (1.0,0)
         if not self.is_reflex:
-            #n=(self.right[0]-self.left[0])
-            #factor=sqrt(n[0]*n[0]+n[1]*n[1])
-            #n=ar((-n[1]/factor,n[0]/factor))
             n=-(self.right[0]+self.left[0])/2
             if LinePair._cross(self.left[0],self.right[0], l.coord+n)<0:
-                #print "We are south of the line."
+                if is_debug:
+                    logging.debug("We are south of the line.")
                 return (-1,0)
-        #left=LinePair._intersectsCircle(self.left, l.coord)
-        #right=LinePair._intersectsCircle(self.right, l.coord)
         right=LinePair._cross(self.right[0],self.right[1],l.coord-self.right[0]) #negative if locus entirely to the right
-        #print '\t\t',right
+        if is_debug:
+            logging.debug('\t\t'+str(right))
         if right > -LinePair.EPSILON and right < LinePair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
             right=0
-        if right > 1.0-LinePair.EPSILON and right < 1.0+LinePair.EPSILON:
+        if right > 1.0-LinePair.EPSILON:
             right=1
         if not self.is_reflex:
             if right < 0:
                 return (-1,0)
-            #if right < 1:
-            #   return (right, 2)
-            #if right == 1:
-            #   return (1.0,0)
         left=-LinePair._cross(self.left[0],self.left[1],l.coord-self.left[0]) #negative if locus is entirely to the left
-        #print '\t\t',left
+        if is_debug:
+            logging.debug('\t\t'+str(left))
         if left > -LinePair.EPSILON and left < LinePair.EPSILON:
             left=0
         if left > 1.0-LinePair.EPSILON:
@@ -195,18 +166,20 @@ class LinePair(object):
             if right < 1:
                 return (right, 2)
             return (1.0,0)
-        right=min(right,1) #max cover is 100%
         #i guess we're a reflex angle, so things get harder...
         if left < 0 and right < 0:
             return (-1,0)
         if(self.left[0].dot(self.right[0])>0):  #angle between normals between -90 and 90
             if left == 1 and right == 1:
                 return (1.0, 0)
-            if left > right:
+            if left - LinePair.EPSILON > right:
                 return (left, 1)
+            if left + LinePair.EPSILON > right: #typically l and r are the same line...
+                if LinePair._cross((0,0),self.left[0],l.coord)<0:
+                    return (left, 1)
             return (right, 2)
         if left == 1 or right == 1:
-            return (1.0,0)
+            return (1.0, 0)
         if left>=0:
             if right>=0:
                 return ((left,right),3)
@@ -263,12 +236,20 @@ class Locus(object):
         """Returns the relevant LinePair for this locus, used if this locus blocks line of sight."""
         lp=LinePair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
         lp.culprits.append(self)
+        if is_debug:
+            logging.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
         return lp
 
 class FOV(object):
     """Field of View calculator."""
     def calculateHexFOV(self, me, world, linepairs=None):
         """Calculate Field of View from triples of the form (x,y,blocksLOS) where x and y are in hex coordinates."""
+        logging.info(str(me))
+        #if me==(42,23, False):
+        #   globals()['is_debug']=True
+        #else:
+        #   globals()['is_debug']=False
+        LinePair.id=1
         if linepairs is None:
             linepairs=[]
         loci=[Locus((i[0]-me[0],i[1]-me[1],i[2])) for i in world]
@@ -293,13 +274,17 @@ class FOV(object):
             assert(sum([lp[0].is_reflex for lp in linepairs])<2)
             wc=sum([lp[0].is_world for lp in linepairs])
             if wc:
-                assert(wc==1)
-                assert(len_linepairs==1)
+                if len_linepairs!=1:
+                    logging.error(str(wc)+' '+str(len_linepairs)+' '+str(len(linepairs)))
+                    for lp in linepairs:
+                        logging.error(str(lp[0]))
+                    raise AssertionError("More than one linepair when world linepair exists.")
             try:
                 l=loci.pop()
             except IndexError:
                 break
-            #print l, len_linepairs
+            if is_debug:
+                logging.debug(str(l)+' '+str(len_linepairs))
             if l.d_2 > d_2:
                 d_2=l.d_2
                 for x in linepairs:
@@ -309,13 +294,12 @@ class FOV(object):
             while lp_index<len_linepairs:
                 (lp1, fresh1)=linepairs[lp_index]
                 (cover1, line1) = lp1.calculateCover(l)
-                #print 'lp1:',lp1
-                #print 'fresh1:',fresh1,'cover1:',cover1,'line1:',line1
+                if is_debug:
+                    logging.debug('lp1: '+str(lp1))
+                    logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
-                    l.cover=max(cover1,0)*(not fresh1&1)+max(cover2,0)*(not fresh1&2)
-                    if l.cover>1.0:
-                        l.cover=2.0-l.cover
+                    l.cover=min(max(cover1,0.0)*(not fresh1&1)+max(cover2,0.0)*(not fresh1&2),1)
                     if l.blocksLOS and lp1.is_reflex:
                         lp1.is_world=True
                     processed=True
@@ -333,13 +317,18 @@ class FOV(object):
                         else: #line1==2
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
-                        #print 'lp2:',lp2
-                        #print 'fresh2:',fresh2,'cover2:',cover2,'line2:',line2
+                        if is_debug:
+                            logging.debug('lp2: '+str(lp2))
+                            logging.debug('fresh2: '+str(fresh2)+' cover2: '+str(cover2)+' line2: '+str(line2))
                         if line2==line1:
-                            print line2,line1
-                        assert(line2!=line1)
+                            logging.error(str(me))
+                            logging.error('locus: '+str(l))
+                            logging.error('line1, len(linepairs), len_linepairs:'+str(line1)+' '+str(len(linepairs))+' '+str(len_linepairs))
+                            logging.error('lp1: '+str(lp1))
+                            logging.error('lp2: '+str(lp2))
+                            raise AssertionError("line1 == line2")
                         assert(line2!=3)
-                    l.cover=max(cover1,0)*(not fresh1&line1)+(max(cover2,0)*(not fresh2&line2))
+                    l.cover=min(max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2)),1)
                     if l.blocksLOS:
                         if cover2>=0:
                             lp=LinePair.mergePairsByLocus((lp1, line1), (lp2, line2))
@@ -415,9 +404,9 @@ if __name__ == '__main__':
         def _assertEqualCover(self, tile, cover):
             """Tests that the tile's cover is exactly 1 or 0 if the cover is 1 or 0, or else is equal to the value of cover to within 12 decimal places."""
             if cover>0 or cover <1:
-                self.assertAlmostEqual(tile[1], cover, 12, "Expected cover "+str(cover)+" for "+tile[0].__repr__()+", got "+tile[1].__repr__())
+                self.assertAlmostEqual(tile[1], cover, 12, "Expected cover "+str(cover)+" for "+str(tile[0])+", got "+str(tile[1]))
             else:
-                self.assertEqual(tile[1], cover, "Expected cover "+str(cover)+" for "+tile[0].__repr__()+", got "+tile[1].__repr__())
+                self.assertEqual(tile[1], cover, "Expected cover "+str(cover)+" for "+str(tile[0])+", got "+str(tile[1]))
 
         def test01_Singular(self):
             """Performing basic sanity check"""

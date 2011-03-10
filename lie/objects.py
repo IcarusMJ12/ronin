@@ -98,7 +98,6 @@ class Actor(BaseObject):
         loc=copy.deepcopy(src_tile.location)
         loc.x+=x
         loc.y+=y
-        logging.debug(loc)
         return self.moveToLocation(loc)
 
     def idle(self):

@@ -10,7 +10,7 @@ from objects import *
 import logging
 from random import Random
 import sys
-import profile
+#import profile
 
 #import psyco
 #psyco.full()
@@ -18,8 +18,6 @@ import profile
 #used by exit handler to quit the game
 def quit():
     pygame.display.quit()
-    #print ctx.world.fov.cache_metrics
-    #print ctx.world.fov.circles_considered
     sys.exit(0)
 
 #player and enemy turn phases to here
@@ -59,8 +57,8 @@ def enemies_phase():
 #initializing everything
 def init():
     #setup logger
-    #logging.basicConfig(level=logging.DEBUG)
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.INFO)
 
     ctx=Context.getContext()
     ctx.quit=quit
@@ -135,4 +133,5 @@ if __name__ == '__main__':
     tm=turns.TurnManager()
     tm.add(player_turn)
     tm.add(enemies_turn)
-    profile.run("tm.run()",'ronin.prof')
+    #profile.run("tm.run()",'ronin.prof')
+    tm.run()
