@@ -31,13 +31,14 @@ def _clockwiseCompare(p1, p2):
     return 1
 
 class LinePair(object):
+    """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
     id=1
+    count_processed=0
     EPSILON=0.001 #woo yay, trying to compensate for floating point computation inaccuracies
 
-    """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
     def __init__(self, left, right, reflex=False):
-        self.left=left  #left line, as a pair of points
-        self.right=right #right line, as a pair of points
+        self.left=left  #left ray, as a (point, unit vector)
+        self.right=right #right ray, as a (point, unit vector)
         self.is_reflex=reflex #when considered from the intersection, whether the line pair makes a reflex angle (>pi)
         self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
         self.culprits=[] #debug info
@@ -46,21 +47,23 @@ class LinePair(object):
         if is_debug:
             logging.debug("Created linepair "+str(self.id))
     
-    def _normalize(self, segment):
+    def _vectorize(self, segment):
+        if segment is None:
+            return None
         seg=ar(segment)
         vector=seg[1]-seg[0]
         vector/=sqrt(sum(pow(vector,2)))
-        seg[1]=seg[0]+vector
+        seg[1]=vector
         return seg
 
     def setLeft(self, left):
-        self._left=self._normalize(left)
+        self._left=self._vectorize(left)
     
     def getLeft(self):
         return self._left
 
     def setRight(self, right):
-        self._right=self._normalize(right)
+        self._right=self._vectorize(right)
     
     def getRight(self):
         return self._right
@@ -123,14 +126,16 @@ class LinePair(object):
             right=lp2.right
             if not reflex and LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= 0:
                 reflex=True
-        lp=LinePair(left,right,reflex)
+        lp=LinePair(None,None,reflex)
+        lp._left=left
+        lp._right=right
         lp.culprits=lp1.culprits
         lp.culprits.extend(lp2.culprits)
         return lp
 
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
-        #TODO: compute actual cover
+        LinePair.count_processed+=1
         if(self.is_world):
             if is_debug:
                 logging.debug("We are world!")
@@ -140,8 +145,8 @@ class LinePair(object):
             if LinePair._cross(self.left[0],self.right[0], l.coord+n)<0:
                 if is_debug:
                     logging.debug("We are south of the line.")
-                return (-1,0)
-        right=LinePair._cross(self.right[0],self.right[1],l.coord-self.right[0]) #negative if locus entirely to the right
+                return (-1,2) #assuming next linepair is right
+        right=LinePair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
         if is_debug:
             logging.debug('\t\t'+str(right))
         if right > -LinePair.EPSILON and right < LinePair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
@@ -150,8 +155,8 @@ class LinePair(object):
             right=1
         if not self.is_reflex:
             if right < 0:
-                return (-1,0)
-        left=-LinePair._cross(self.left[0],self.left[1],l.coord-self.left[0]) #negative if locus is entirely to the left
+                return (-1,2)
+        left=-LinePair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
         if is_debug:
             logging.debug('\t\t'+str(left))
         if left > -LinePair.EPSILON and left < LinePair.EPSILON:
@@ -160,7 +165,7 @@ class LinePair(object):
             left=1
         if not self.is_reflex:
             if left < 0:
-                return (-1,0)
+                return (-1,1)
             if left < 1 and left < right:
                 return (left, 1)
             if right < 1:
@@ -168,7 +173,7 @@ class LinePair(object):
             return (1.0,0)
         #i guess we're a reflex angle, so things get harder...
         if left < 0 and right < 0:
-            return (-1,0)
+            return (-1,2)
         if(self.left[0].dot(self.right[0])>0):  #angle between normals between -90 and 90
             if left == 1 and right == 1:
                 return (1.0, 0)
@@ -186,20 +191,15 @@ class LinePair(object):
             return (left,1)
         return (right,2)
     
-    def _getPosition(self, point):
-        """Returns 1, 0, or -1, if the point is left, between, or right of the line pair, respectively."""
-        if(LinePair._cross(self.left[0], self.left[1], point)>0):
-            return 1
-        if self.is_reflex:
-            return 0
-        if(LinePair._cross(self.right[0], self.right[1], point)<0):
-            return -1
-        return 0
-
     @classmethod
     def _cross(self, p1, p2, p3):
         """Returns 1, 0, or -1, if p3 is left, on, or right of the line going from p1 to p2."""
         return (p2[0]-p1[0])*(p3[1]-p1[1])-(p2[1]-p1[1])*(p3[0]-p1[0])
+
+    @classmethod
+    def _crossVectors(self, v1, v2):
+        """Returns 1, 0, or -1, if v2 is counter-clockwise, on, or clockwise of v2."""
+        return v1[0]*v2[1]-v1[1]*v2[0]
 
 class Locus(object):
     """Generally speaking, a circle positioned using Cartesian coordinates that may block line of sight."""
@@ -270,6 +270,7 @@ class FOV(object):
         d_2=1
         lp_index=0
         len_linepairs=len(linepairs)
+        lp_index=0 #start with the 'leftmost' linepair again
         while True:
             assert(sum([lp[0].is_reflex for lp in linepairs])<2)
             wc=sum([lp[0].is_world for lp in linepairs])
@@ -287,11 +288,13 @@ class FOV(object):
                 logging.debug(str(l)+' '+str(len_linepairs))
             if l.d_2 > d_2:
                 d_2=l.d_2
+                lp_index=0 #restarting
                 for x in linepairs:
                     x[1]=0 #distance increase means all lines are now 'stale'
-            lp_index=0 #start with the 'leftmost' linepair again
             processed=False
-            while lp_index<len_linepairs:
+            direction=0
+            line1=None
+            for ignored in xrange(len_linepairs):
                 (lp1, fresh1)=linepairs[lp_index]
                 (cover1, line1) = lp1.calculateCover(l)
                 if is_debug:
@@ -311,16 +314,16 @@ class FOV(object):
                 (lp2,fresh2,cover2,line2)=(None,0,-1,0)
                 if cover1>=0: #jackpot?
                     if len_linepairs>1:
-                        if line1==1:
+                        if line1==1 and direction!=1:
                             (lp2, fresh2)=linepairs[(lp_index-1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
-                        else: #line1==2
+                        elif direction!=-1: #line1==2
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
                         if is_debug:
                             logging.debug('lp2: '+str(lp2))
                             logging.debug('fresh2: '+str(fresh2)+' cover2: '+str(cover2)+' line2: '+str(line2))
-                        if line2==line1:
+                        if cover2>=0 and line2==line1:
                             logging.error(str(me))
                             logging.error('locus: '+str(l))
                             logging.error('line1, len(linepairs), len_linepairs:'+str(line1)+' '+str(len(linepairs))+' '+str(len_linepairs))
@@ -339,18 +342,27 @@ class FOV(object):
                             else:
                                 linepairs.pop((lp_index+1)%len_linepairs)
                             len_linepairs-=1
+                            lp_index-=1
                         else:
                             lp1.mergeLocus(l, line1)
                             linepairs[lp_index][1]|=line1
                     processed=True
                     break #if cover1>=0
-                lp_index+=1
+                if not direction:
+                    if line1 == 1:
+                        direction=-1
+                    elif line1 == 2:
+                        direction=1
+                elif (direction==-1 and line1 !=1) or (direction==1 and line1 !=2):
+                    break
+                lp_index=(lp_index+direction)%len_linepairs
             if not processed and l.cover==0 and l.blocksLOS:
                 linepairs.append([l.toLinePair(),3])
                 len_linepairs+=1
                 linepairs.sort()
             ret.append(l)
         (x,y)=(me[0],me[1])
+        print "LinePairs processed: ",LinePair.count_processed
         return [((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret]
 
 if __name__ == '__main__':
