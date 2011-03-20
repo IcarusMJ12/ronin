@@ -5,7 +5,7 @@ from lie import input, messages, monofont, turns, ui
 from lie.grids import Location, Tile, PseudoHexGrid
 from lie.objects import *
 import lie.globals
-from context import Context as Context
+from lie.context import Context as Context
 from objects import *
 import logging
 from random import Random

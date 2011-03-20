@@ -9,3 +9,4 @@ screen_height = None
 message_buffer_height = None
 grid_offset = None
 scale_horizontally = None
+savefile_location = None

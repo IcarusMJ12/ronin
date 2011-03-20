@@ -31,3 +31,4 @@ def init(f):
     globals.screen = pygame.display.set_mode((globals.screen_width, globals.screen_height))
     globals.screen.fill((0,0,0))
     globals.background = globals.screen.copy()
+    globals.savefile_location = conf.get('lie','savefile_location')

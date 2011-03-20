@@ -1,6 +1,6 @@
 import pygame
 from pygame.locals import *
-from context import Context as Context
+from lie.context import Context as Context
 import logging
 from lie.input import InputHandler
 import lie.objects

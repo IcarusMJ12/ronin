@@ -2,12 +2,12 @@ class Context(object):
     ctx=None
 
     def __init__(self):
-        self.group = None
         self.pc = None
         self.enemies = None
         self.world = None
         self.random = None
         self.quit = None
+        self.screen_manager = None
     
     @classmethod
     def getContext(self):
