@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import pygame
 from pygame.locals import *
-from lie import input, messages, monofont, turns, ui
+from lie import input, messages, monofont, turns, ui, savefile
 from lie.grids import Location, Tile, PseudoHexGrid
 from lie.objects import *
 import lie.globals
@@ -15,10 +15,20 @@ import sys
 #import psyco
 #psyco.full()
 
-#used by exit handler to quit the game
 def quit():
+    """Quit without saving."""
     pygame.display.quit()
     sys.exit(0)
+
+def save():
+    """Save the game and exit."""
+    save=savefile.SaveFile('save')
+    data={'screen_manager':ctx.screen_manager}
+    save.save(data)
+    quit()
+
+def load():
+    """Loads the game if available."""
 
 #player and enemy turn phases to here
 def player_pre():
@@ -44,8 +54,8 @@ def player_post():
     if not len(ctx.enemies):
         ctx.message_buffer.addMessage("All oni have been slain and you emerged victorious!")
         victory_handler=input.InputHandler()
-        victory_handler.addFunction(ctx.quit, K_RETURN)
-        victory_handler.addFunction(ctx.quit, K_SPACE)
+        victory_handler.addFunction(quit, K_RETURN)
+        victory_handler.addFunction(quit, K_SPACE)
         ctx.screen_manager.current.handlers.push(victory_handler)
 
 def enemies_phase():
@@ -61,7 +71,6 @@ def init():
     #logging.basicConfig(level=logging.INFO)
 
     ctx=Context.getContext()
-    ctx.quit=quit
     #get random
     ctx.random = Random(0)
 
@@ -79,7 +88,8 @@ def init():
     handler.addFunction(ctx.pc.moveE, K_b)
     handler.addFunction(ctx.pc.moveS, K_n)
     handler.addFunction(ctx.pc.idle, K_PERIOD)
-    handler.addFunction(ctx.quit, K_q, (KMOD_CTRL,))
+    handler.addFunction(quit, K_q, (KMOD_CTRL,))
+    handler.addFunction(save, K_s, (KMOD_SHIFT,))
 
     #setup screen manager
     ctx.screen_manager=ui.ScreenManager(ui.Screen(handler))

@@ -6,7 +6,6 @@ class Context(object):
         self.enemies = None
         self.world = None
         self.random = None
-        self.quit = None
         self.screen_manager = None
     
     @classmethod
