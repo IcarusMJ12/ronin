@@ -103,6 +103,7 @@ if __name__ == '__main__':
     lie.init('ronin.conf')
     init()
     ctx=Context.getContext()
+    ctx.quit=quit
     #populate world
     ctx.world=PseudoHexGrid(0,51,25)
     for i in xrange(25):
