@@ -17,6 +17,8 @@ import sys
 #import psyco
 #psyco.full()
 
+SAVE_FILE='save'
+
 def quit():
     """Quit without saving."""
     pygame.display.quit()
@@ -24,13 +26,20 @@ def quit():
 
 def save():
     """Save the game and exit."""
-    save=savefile.SaveFile('save')
-    data={'screen_manager':ctx.screen_manager}
-    save.save(data)
+    s=savefile.SaveFile(SAVE_FILE)
+    data={'ctx':Context.getContext()}
+    s.save(data)
     quit()
 
 def load():
     """Loads the game if available."""
+    s=savefile.SaveFile(SAVE_FILE)
+    ret=s.load()
+    try:
+        Context.ctx=ret['ctx']
+        return Context.ctx
+    except TypeError:
+        return None
 
 #player and enemy turn phases to here
 def player_pre():
@@ -103,52 +112,55 @@ def init():
 
 if __name__ == '__main__':
     lie.init('ronin.conf')
-    init()
-    ctx=Context.getContext()
-    ctx.quit=quit
-    #populate world
-    ctx.world=Level(51,25)
-    ctx.worldview=HexGridView(51,25)
-    for i in xrange(25):
-        ctx.world[0,i].terrain=Wall()
-        ctx.world[50,i].terrain=Wall()
-    for i in xrange(49):
-        ctx.world[i+1,0].terrain=Wall()
-        ctx.world[i+1,24].terrain=Wall()
-    tile=ctx.world[26,13]
-    tile.actor=ctx.pc
-    ctx.pc.parent=tile
-    ctx.pc.perception=PGrid(ctx.world, ctx.pc)
-    ctx.worldview.pc=ctx.pc
-    ctx.worldview.level=ctx.world
-    ctx.worldview.center(ctx.worldview[26,13].rect)
-    for i in xrange(49):
-        for j in xrange(23):
-            if ctx.random.randint(0,5)==5:
-                try:
-                    ctx.world[i+1,j+1].terrain=Wall()
-                except:
-                    pass
-    ctx.enemies=[]
-    for i in xrange(49):
-        for j in xrange(23):
-            if ctx.random.randint(0,10)==10:
-                try:
-                    tile=ctx.world[i+1,j+1]
-                    tile.actor=Oni()
-                    tile.actor.parent=tile
-                    ctx.enemies.append(tile.actor)
-                except:
-                    pass
-    ctx.screen_manager.current.view.add(ctx.worldview)
-    ctx.screen_manager.current.view.draw()
-    #setup turn manager
-    player_turn=turns.TurnPhase(player_phase)
-    player_turn.pre=player_pre
-    player_turn.post=player_post
-    enemies_turn=turns.TurnPhase(enemies_phase)
-    tm=turns.TurnManager()
-    tm.add(player_turn)
-    tm.add(enemies_turn)
-    #profile.run("tm.run()",'ronin.prof')
-    tm.run()
+    ctx=load()
+    if ctx == None:
+        init()
+        ctx=Context.getContext()
+        ctx.quit=quit
+        #populate world
+        ctx.world=Level(51,25)
+        ctx.worldview=HexGridView(51,25)
+        for i in xrange(25):
+            ctx.world[0,i].terrain=Wall()
+            ctx.world[50,i].terrain=Wall()
+        for i in xrange(49):
+            ctx.world[i+1,0].terrain=Wall()
+            ctx.world[i+1,24].terrain=Wall()
+        tile=ctx.world[26,13]
+        tile.actor=ctx.pc
+        ctx.pc.parent=tile
+        ctx.pc.perception=PGrid(ctx.world, ctx.pc)
+        ctx.worldview.pc=ctx.pc
+        ctx.worldview.level=ctx.world
+        ctx.worldview.center(ctx.worldview[26,13].rect)
+        for i in xrange(49):
+            for j in xrange(23):
+                if ctx.random.randint(0,5)==5:
+                    try:
+                        ctx.world[i+1,j+1].terrain=Wall()
+                    except:
+                        pass
+        ctx.enemies=[]
+        for i in xrange(49):
+            for j in xrange(23):
+                if ctx.random.randint(0,10)==10:
+                    try:
+                        tile=ctx.world[i+1,j+1]
+                        tile.actor=Oni()
+                        tile.actor.parent=tile
+                        ctx.enemies.append(tile.actor)
+                    except:
+                        pass
+        ctx.screen_manager.current.view.add(ctx.worldview)
+        ctx.screen_manager.current.view.draw()
+        #setup turn manager
+        player_turn=turns.TurnPhase(player_phase)
+        player_turn.pre=player_pre
+        player_turn.post=player_post
+        enemies_turn=turns.TurnPhase(enemies_phase)
+        tm=turns.TurnManager()
+        tm.add(player_turn)
+        tm.add(enemies_turn)
+        ctx.turn_manager=tm
+        #profile.run("tm.run()",'ronin.prof')
+    ctx.turn_manager.run()

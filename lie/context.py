@@ -8,6 +8,7 @@ class Context(object):
         self.worldview = None
         self.random = None
         self.screen_manager = None
+        self.turn_manager = None
     
     @classmethod
     def getContext(self):

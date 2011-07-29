@@ -31,12 +31,12 @@ class SaveFile(object):
             with open(savedir+'/'+pickle, 'r') as f:
                 result[pickle[:-7]]=cPickle.load(f)
         shutil.rmtree(savedir)
-        os.remove(savefile)
+        #os.remove(savefile) #though a common thing to do in roguelikes, this is generally a bad practice; encourages save-scumming by forcing people to make crash backups
         return result
 
     def save(self, candidates):
         savedir = globals.savefile_location+self._filename
-        savefile = savedir+FILE_EXT
+        savefile = savedir+FILE_EXT+'.tmp'
         assert(not os.access(savedir, os.F_OK))
         os.mkdir(savedir)
         tar = tarfile.open(savefile, WRITE_MODE)
@@ -48,6 +48,7 @@ class SaveFile(object):
             os.remove(filename)
         shutil.rmtree(savedir)
         tar.close()
+        shutil.move(savefile,savedir+FILE_EXT)
         return
 
 if __name__ == '__main__':
