@@ -10,6 +10,8 @@ def computeTileColor(ptile):
     gray=globals.darkest_gray
     g=1.0
     r=ptile.cover
+    if r==1:
+        return(gray*255,gray*255,gray*255)
     b=1.0
     if ptile.d2:
         b=(1.0/math.pow(ptile.d2,0.25))
@@ -77,10 +79,16 @@ class GridView(pygame.sprite.RenderUpdates):
     
     def draw(self):
         self.clear(self.viewport, globals.background)
-        dirties=set(self.level.getDirtyLocations()).intersection(self.pc.perception.getDirtyLocations())
+        dirties=set(self.level.getDirtyLocations()).union(self.pc.perception.getDirtyLocations())
+        #for tile in self.tiles:
+        #   tile.image=globals.font.render(self.level[tile.loc].top().symbol,True,computeTileColor(self.pc.perception[tile.loc]))
         for loc in dirties:
-            self[loc].image=globals.font.render(self.level[loc].top().symbol,True,computeTileColor(self.pc.perception[loc]))
+            self[loc].image=globals.font.render(self.pc.perception[loc].top().symbol,True,computeTileColor(self.pc.perception[loc]))
         pygame.display.update(super(GridView, self).draw(self.viewport))
+        for tile in self.level.tiles:
+            tile.dirty=0
+        for tile in self.pc.perception.tiles:
+            tile.dirty=0
     
     def setSprites(self, sprites):
         self._sprites=sprites

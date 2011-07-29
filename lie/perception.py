@@ -24,6 +24,11 @@ class PTile(object):
 
     cover=property(getCover,setCover)
 
+    def top(self):
+        if self.cover==1:
+            return self.tile.terrain
+        return self.tile.top()
+
 class PGrid(Grid):
     def __init__(self, grid, actor):
         super(PGrid, self).__init__(grid.width, grid.height)

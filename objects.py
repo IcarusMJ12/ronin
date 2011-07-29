@@ -32,7 +32,7 @@ class PC(Human):
     def moveToTile(self,dst_tile):
         ret=super(PC,self).moveToTile(dst_tile)
         if ret:
-            ctx.worldview.center(dst_tile.rect)
+            ctx.worldview.center(ctx.worldview[dst_tile.loc].rect)
         return ret
 
 class Oni(Actor):

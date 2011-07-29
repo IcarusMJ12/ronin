@@ -75,7 +75,7 @@ class Grid(object):
     tiles=property(getTiles,None)
 
     def getDirtyLocations(self):
-        return [(i,j) for j in xrange(self.height) for i in xrange(self.height) if self[i,j].dirty]
+        return [(i,j) for j in xrange(self.height) for i in xrange(self.width) if self[i,j].dirty]
 
     def markClean(self):
         for tile in self.tiles:
