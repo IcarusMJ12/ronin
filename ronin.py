@@ -2,7 +2,9 @@
 import pygame
 from pygame.locals import *
 from lie import input, messages, monofont, turns, ui, savefile
-from lie.grids import Location, Tile, PseudoHexGrid
+from lie.gridview import HexGridView, computeTileColor
+from lie.reality import Level
+from lie.perception import PGrid
 from lie.objects import *
 import lie.globals
 from lie.context import Context as Context
@@ -34,8 +36,8 @@ def load():
 def player_pre():
     ctx=Context.getContext()
     ctx.message_buffer.is_read=True
-    ctx.world.FOV(ctx.pc.parent,6)
-    ctx.world.draw()
+    ctx.pc.perception.calculateFOV()
+    ctx.worldview.draw()
 
 def player_phase():
     ctx=Context.getContext()
@@ -45,7 +47,7 @@ def player_phase():
     logging.info(ret)
     if ret is not None:
         ctx.message_buffer.flush()
-        ctx.world.draw()
+        ctx.worldview.draw()
         return True
     return False
 
@@ -96,7 +98,7 @@ def init():
 
     ctx.message_buffer=messages.MessageBuffer(ctx.screen_manager.current)
 
-    pygame.display.set_caption('ronin')
+    pygame.display.set_caption('Ronin')
     pygame.display.update()
 
 if __name__ == '__main__':
@@ -105,22 +107,26 @@ if __name__ == '__main__':
     ctx=Context.getContext()
     ctx.quit=quit
     #populate world
-    ctx.world=PseudoHexGrid(0,51,25)
+    ctx.world=Level(51,25)
+    ctx.worldview=HexGridView(51,25)
     for i in xrange(25):
-        ctx.world.getTile(0,i).terrain=Wall()
-        ctx.world.getTile(50,i).terrain=Wall()
+        ctx.world[0,i].terrain=Wall()
+        ctx.world[50,i].terrain=Wall()
     for i in xrange(49):
-        ctx.world.getTile(i+1,0).terrain=Wall()
-        ctx.world.getTile(i+1,24).terrain=Wall()
-    tile=ctx.world.getTile(26,13)
+        ctx.world[i+1,0].terrain=Wall()
+        ctx.world[i+1,24].terrain=Wall()
+    tile=ctx.world[26,13]
     tile.actor=ctx.pc
     ctx.pc.parent=tile
-    ctx.world.center(tile.rect)
+    ctx.pc.perception=PGrid(ctx.world, ctx.pc)
+    ctx.worldview.pc=ctx.pc
+    ctx.worldview.level=ctx.world
+    ctx.worldview.center(ctx.worldview[26,13].rect)
     for i in xrange(49):
         for j in xrange(23):
             if ctx.random.randint(0,5)==5:
                 try:
-                    ctx.world.getTile(i+1,j+1).terrain=Wall()
+                    ctx.world[i+1,j+1].terrain=Wall()
                 except:
                     pass
     ctx.enemies=[]
@@ -128,13 +134,13 @@ if __name__ == '__main__':
         for j in xrange(23):
             if ctx.random.randint(0,10)==10:
                 try:
-                    tile=ctx.world.getTile(i+1,j+1)
+                    tile=ctx.world[i+1,j+1]
                     tile.actor=Oni()
                     tile.actor.parent=tile
                     ctx.enemies.append(tile.actor)
                 except:
                     pass
-    ctx.screen_manager.current.view.add(ctx.world)
+    ctx.screen_manager.current.view.add(ctx.worldview)
     ctx.screen_manager.current.view.draw()
     #setup turn manager
     player_turn=turns.TurnPhase(player_phase)

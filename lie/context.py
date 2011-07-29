@@ -5,6 +5,7 @@ class Context(object):
         self.pc = None
         self.enemies = None
         self.world = None
+        self.worldview = None
         self.random = None
         self.screen_manager = None
     

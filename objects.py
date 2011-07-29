@@ -11,7 +11,7 @@ ctx=Context.getContext()
 
 class Actor(lie.objects.Actor):
     def moveToLocation(self, loc):
-        dst_tile=ctx.world.getTile(loc.x,loc.y)
+        dst_tile=ctx.world[loc]
         return self.moveToTile(dst_tile)
 
 class Human(Actor):
@@ -32,7 +32,7 @@ class PC(Human):
     def moveToTile(self,dst_tile):
         ret=super(PC,self).moveToTile(dst_tile)
         if ret:
-            ctx.world.center(dst_tile.rect)
+            ctx.worldview.center(dst_tile.rect)
         return ret
 
 class Oni(Actor):

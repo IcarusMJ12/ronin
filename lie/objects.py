@@ -95,9 +95,7 @@ class Actor(BaseObject):
     def moveToOffset(self,x,y):
         src_tile=self.parent
         assert(src_tile)
-        loc=copy.deepcopy(src_tile.location)
-        loc.x+=x
-        loc.y+=y
+        loc=(src_tile.loc[0]+x,src_tile.loc[1]+y)
         return self.moveToLocation(loc)
 
     def idle(self):
