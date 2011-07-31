@@ -80,8 +80,6 @@ class GridView(pygame.sprite.RenderUpdates):
     def draw(self):
         self.clear(self.viewport, globals.background)
         dirties=set(self.level.getDirtyLocations()).union(self.pc.perception.getDirtyLocations())
-        #for tile in self.tiles:
-        #   tile.image=globals.font.render(self.level[tile.loc].top().symbol,True,computeTileColor(self.pc.perception[tile.loc]))
         for loc in dirties:
             self[loc].image=globals.font.render(self.pc.perception[loc].top().symbol,True,computeTileColor(self.pc.perception[loc]))
         pygame.display.update(super(GridView, self).draw(self.viewport))

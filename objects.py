@@ -7,10 +7,9 @@ import lie.objects
 
 __all__=['PC', 'Oni']
 
-ctx=Context.getContext()
-
 class Actor(lie.objects.Actor):
     def moveToLocation(self, loc):
+        ctx=Context.getContext()
         dst_tile=ctx.world[loc]
         return self.moveToTile(dst_tile)
 
@@ -22,6 +21,7 @@ class Human(Actor):
 class PC(Human):
     """The man himself."""
     def moveBlocked(self,tile):
+        ctx=Context.getContext()
         if(tile.actor and isinstance(tile.actor,Oni)):
             ctx.message_buffer.addMessage("You hit the oni and slay it.")
             ctx.enemies.remove(tile.actor)
@@ -31,6 +31,7 @@ class PC(Human):
     
     def moveToTile(self,dst_tile):
         ret=super(PC,self).moveToTile(dst_tile)
+        ctx=Context.getContext()
         if ret:
             ctx.worldview.center(ctx.worldview[dst_tile.loc].rect)
         return ret
@@ -41,6 +42,7 @@ class Oni(Actor):
         self.symbol='o'
     
     def moveBlocked(self,tile):
+        ctx=Context.getContext()
         if(tile.actor==ctx.pc):
             ctx.message_buffer.addMessage("An oni hits you.  You die! [Enter or Space to quit]")
             death_handler=InputHandler()
@@ -49,6 +51,7 @@ class Oni(Actor):
             ctx.screen_manager.current.handlers.push(death_handler)
     
     def act(self):
+        ctx=Context.getContext()
         choice=ctx.random.randint(0,5)
         if(choice==0):
             self.moveN()

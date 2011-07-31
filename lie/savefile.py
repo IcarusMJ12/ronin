@@ -42,6 +42,7 @@ class SaveFile(object):
         tar = tarfile.open(savefile, WRITE_MODE)
         for key,value in candidates.items():
             filename=savedir+'/'+key+'.pickle'
+            print key
             with open(filename, 'w') as f:
                 cPickle.dump(value, f)
             tar.add(filename)

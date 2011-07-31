@@ -7,7 +7,7 @@ class PTile(object):
         super(PTile, self).__init__()
         self.tile=tile
         self._cover=1
-        self.d2=0
+        self._d2=0
         self.was_seen=False
         self.dirty=1
     
@@ -23,6 +23,17 @@ class PTile(object):
         return self._cover
 
     cover=property(getCover,setCover)
+
+    def setD2(self,val):
+        if self._d2==val:
+            return
+        self._d2=val
+        self.dirty=1
+    
+    def getD2(self):
+        return self._d2
+
+    d2=property(getD2,setD2)
 
     def top(self):
         if self.cover==1:

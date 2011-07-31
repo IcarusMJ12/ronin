@@ -26,20 +26,19 @@ def quit():
 
 def save():
     """Save the game and exit."""
+    ctx=Context.getContext()
     s=savefile.SaveFile(SAVE_FILE)
-    data={'ctx':Context.getContext()}
-    s.save(data)
+    s.save({'ctx':ctx})
     quit()
 
 def load():
     """Loads the game if available."""
     s=savefile.SaveFile(SAVE_FILE)
     ret=s.load()
-    try:
-        Context.ctx=ret['ctx']
-        return Context.ctx
-    except TypeError:
-        return None
+    if not ret:
+        return ret
+    Context.ctx=ret['ctx']
+    return Context.getContext()
 
 #player and enemy turn phases to here
 def player_pre():
@@ -83,10 +82,12 @@ def init():
 
     ctx=Context.getContext()
     #get random
-    ctx.random = Random(0)
+    if not ctx.random:
+        ctx.random = Random(0)
 
     #get PC -- important for functions below
-    ctx.pc=PC()
+    if not ctx.pc:
+        ctx.pc=PC()
 
     #setup event handler
     pygame.event.set_allowed(None)
@@ -105,7 +106,8 @@ def init():
     #setup screen manager
     ctx.screen_manager=ui.ScreenManager(ui.Screen(handler))
 
-    ctx.message_buffer=messages.MessageBuffer(ctx.screen_manager.current)
+    if not ctx.message_buffer:
+        ctx.message_buffer=messages.MessageBuffer(ctx.screen_manager.current)
 
     pygame.display.set_caption('Ronin')
     pygame.display.update()
@@ -113,8 +115,8 @@ def init():
 if __name__ == '__main__':
     lie.init('ronin.conf')
     ctx=load()
+    init()
     if ctx == None:
-        init()
         ctx=Context.getContext()
         ctx.quit=quit
         #populate world
@@ -132,7 +134,7 @@ if __name__ == '__main__':
         ctx.pc.perception=PGrid(ctx.world, ctx.pc)
         ctx.worldview.pc=ctx.pc
         ctx.worldview.level=ctx.world
-        ctx.worldview.center(ctx.worldview[26,13].rect)
+        ctx.worldview.center(ctx.worldview[ctx.pc.parent.loc].rect)
         for i in xrange(49):
             for j in xrange(23):
                 if ctx.random.randint(0,5)==5:
@@ -163,4 +165,13 @@ if __name__ == '__main__':
         tm.add(enemies_turn)
         ctx.turn_manager=tm
         #profile.run("tm.run()",'ronin.prof')
+    else:
+        ctx.worldview=HexGridView(51,25)
+        ctx.worldview.pc=ctx.pc
+        ctx.worldview.level=ctx.world
+        ctx.worldview.center(ctx.worldview[ctx.pc.parent.loc].rect)
+        ctx.screen_manager.current.view.add(ctx.worldview)
+        for tile in ctx.worldview.level.tiles:
+            tile.dirty=1
+        ctx.screen_manager.current.view.draw()
     ctx.turn_manager.run()
