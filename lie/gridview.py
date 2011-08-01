@@ -79,13 +79,13 @@ class GridView(pygame.sprite.RenderUpdates):
     
     def draw(self):
         self.clear(self.viewport, globals.background)
-        dirties=set(self.level.getDirtyLocations()).union(self.pc.perception.getDirtyLocations())
+        dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
         for loc in dirties:
-            self[loc].image=globals.font.render(self.pc.perception[loc].top().symbol,True,computeTileColor(self.pc.perception[loc]))
+            self[loc].image=globals.font.render(self.perception[loc].top().symbol,True,computeTileColor(self.perception[loc]))
         pygame.display.update(super(GridView, self).draw(self.viewport))
         for tile in self.level.tiles:
             tile.dirty=0
-        for tile in self.pc.perception.tiles:
+        for tile in self.perception.tiles:
             tile.dirty=0
     
     def setSprites(self, sprites):
@@ -94,7 +94,10 @@ class GridView(pygame.sprite.RenderUpdates):
         self.add(sprites)
 
 class HexGridView(GridView, Grid):
-    def __init__(self,width,height,center=None):
+    def __init__(self,level,perception,center=None):
+        self.level=level
+        self.perception=perception
+        (width,height)=(level.width,level.height)
         viewable_area=Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset)))
         Grid.__init__(self,width,height)
         GridView.__init__(self,viewable_area,center)

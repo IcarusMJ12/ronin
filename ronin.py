@@ -19,17 +19,40 @@ import sys
 
 SAVE_FILE='save'
 
-def quit():
+def reallyQuit():
     """Quit without saving."""
+    s=savefile.SaveFile(SAVE_FILE)
+    try:
+        s.delete()
+    except OSError:
+        pass
     pygame.display.quit()
     sys.exit(0)
+
+def dontQuit():
+    ctx=Context.getContext()
+    ctx.message_buffer.is_read=True
+    ctx.message_buffer.flush()
+    ctx.screen_manager.current.handlers.pop()
+
+def quit():
+    """Quit without saving."""
+    ctx=Context.getContext()
+    ctx.message_buffer.addMessage("Commit seppuku? [y/N]")
+    quit_handler=input.InputHandler()
+    quit_handler.addFunction(dontQuit, K_RETURN)
+    quit_handler.addFunction(dontQuit, K_SPACE)
+    quit_handler.addFunction(dontQuit, K_n)
+    quit_handler.addFunction(reallyQuit, K_y)
+    ctx.screen_manager.current.handlers.push(quit_handler)
 
 def save():
     """Save the game and exit."""
     ctx=Context.getContext()
     s=savefile.SaveFile(SAVE_FILE)
     s.save({'ctx':ctx})
-    quit()
+    pygame.display.quit()
+    sys.exit(0)
 
 def load():
     """Loads the game if available."""
@@ -121,7 +144,6 @@ if __name__ == '__main__':
         ctx.quit=quit
         #populate world
         ctx.world=Level(51,25)
-        ctx.worldview=HexGridView(51,25)
         for i in xrange(25):
             ctx.world[0,i].terrain=Wall()
             ctx.world[50,i].terrain=Wall()
@@ -132,9 +154,6 @@ if __name__ == '__main__':
         tile.actor=ctx.pc
         ctx.pc.parent=tile
         ctx.pc.perception=PGrid(ctx.world, ctx.pc)
-        ctx.worldview.pc=ctx.pc
-        ctx.worldview.level=ctx.world
-        ctx.worldview.center(ctx.worldview[ctx.pc.parent.loc].rect)
         for i in xrange(49):
             for j in xrange(23):
                 if ctx.random.randint(0,5)==5:
@@ -153,8 +172,6 @@ if __name__ == '__main__':
                         ctx.enemies.append(tile.actor)
                     except:
                         pass
-        ctx.screen_manager.current.view.add(ctx.worldview)
-        ctx.screen_manager.current.view.draw()
         #setup turn manager
         player_turn=turns.TurnPhase(player_phase)
         player_turn.pre=player_pre
@@ -166,12 +183,10 @@ if __name__ == '__main__':
         ctx.turn_manager=tm
         #profile.run("tm.run()",'ronin.prof')
     else:
-        ctx.worldview=HexGridView(51,25)
-        ctx.worldview.pc=ctx.pc
-        ctx.worldview.level=ctx.world
-        ctx.worldview.center(ctx.worldview[ctx.pc.parent.loc].rect)
-        ctx.screen_manager.current.view.add(ctx.worldview)
-        for tile in ctx.worldview.level.tiles:
+        for tile in ctx.world.tiles:
             tile.dirty=1
-        ctx.screen_manager.current.view.draw()
+    ctx.worldview=HexGridView(ctx.world, ctx.pc.perception)
+    ctx.worldview.center(ctx.worldview[ctx.pc.parent.loc].rect)
+    ctx.screen_manager.current.view.add(ctx.worldview)
+    ctx.screen_manager.current.view.draw()
     ctx.turn_manager.run()
