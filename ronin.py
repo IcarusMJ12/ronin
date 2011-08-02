@@ -3,7 +3,7 @@ import pygame
 from pygame.locals import *
 from lie import input, messages, monofont, turns, ui, savefile
 from lie.gridview import HexGridView, computeTileColor
-from lie.reality import Level
+from lie.mapgen import CellularAutomata
 from lie.perception import PGrid
 from lie.objects import *
 import lie.globals
@@ -143,24 +143,12 @@ if __name__ == '__main__':
         ctx=Context.getContext()
         ctx.quit=quit
         #populate world
-        ctx.world=Level(51,25)
-        for i in xrange(25):
-            ctx.world[0,i].terrain=Wall()
-            ctx.world[50,i].terrain=Wall()
-        for i in xrange(49):
-            ctx.world[i+1,0].terrain=Wall()
-            ctx.world[i+1,24].terrain=Wall()
-        tile=ctx.world[26,13]
+        generator=CellularAutomata(Random(1), Floor, Wall)
+        ctx.world=generator.generateLevel(51,25)
+        tile=ctx.world[26,16]
         tile.actor=ctx.pc
         ctx.pc.parent=tile
         ctx.pc.perception=PGrid(ctx.world, ctx.pc)
-        for i in xrange(49):
-            for j in xrange(23):
-                if ctx.random.randint(0,5)==5:
-                    try:
-                        ctx.world[i+1,j+1].terrain=Wall()
-                    except:
-                        pass
         ctx.enemies=[]
         for i in xrange(49):
             for j in xrange(23):
