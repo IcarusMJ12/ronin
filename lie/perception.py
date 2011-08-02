@@ -36,6 +36,8 @@ class PTile(object):
     d2=property(getD2,setD2)
 
     def top(self):
+        if not self.was_seen:
+            return None
         if self.cover==1:
             return self.tile.terrain
         return self.tile.top()

@@ -81,7 +81,10 @@ class GridView(pygame.sprite.RenderUpdates):
         self.clear(self.viewport, globals.background)
         dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
         for loc in dirties:
-            self[loc].image=globals.font.render(self.perception[loc].top().symbol,True,computeTileColor(self.perception[loc]))
+            try:
+                self[loc].image=globals.font.render(self.perception[loc].top().symbol,True,computeTileColor(self.perception[loc]))
+            except AttributeError:
+                pass
         pygame.display.update(super(GridView, self).draw(self.viewport))
         for tile in self.level.tiles:
             tile.dirty=0
