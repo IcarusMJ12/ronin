@@ -268,7 +268,6 @@ class FOV(object):
             ret.append(l)
         #process everything else
         d_2=1
-        lp_index=0
         len_linepairs=len(linepairs)
         lp_index=0 #start with the 'leftmost' linepair again
         while True:
@@ -342,7 +341,7 @@ class FOV(object):
                             else:
                                 linepairs.pop((lp_index+1)%len_linepairs)
                             len_linepairs-=1
-                            lp_index-=1
+                            lp_index=(lp_index-1)%len_linepairs
                         else:
                             lp1.mergeLocus(l, line1)
                             linepairs[lp_index][1]|=line1
@@ -362,7 +361,7 @@ class FOV(object):
                 linepairs.sort()
             ret.append(l)
         (x,y)=(me[0],me[1])
-        print "LinePairs processed: ",LinePair.count_processed
+        logging.debug("LinePairs processed: "+str(LinePair.count_processed))
         return [((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret]
 
 if __name__ == '__main__':

@@ -141,7 +141,7 @@ if __name__ == '__main__':
     init()
     if ctx == None:
         ctx=Context.getContext()
-        ctx.quit=quit
+        ctx.quit=reallyQuit
         #populate world
         generator=CellularAutomata(Random(1), Floor, Wall)
         ctx.world=generator.generateLevel(51,25)
