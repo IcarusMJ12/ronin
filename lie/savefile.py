@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# Copyright (c) 2011 Igor Kaplounenko.
+# Licensed under the Open Software License version 3.0.
+
 import tarfile
 import cPickle
 import os, shutil

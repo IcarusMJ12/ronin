@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# Copyright (c) 2011 Igor Kaplounenko.
+# Licensed under the Open Software License version 3.0.
+
 from reality import Level
 
 class CellularAutomata(object):

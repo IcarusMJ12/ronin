@@ -1,3 +1,6 @@
+# Copyright (c) 2011 Igor Kaplounenko.
+# Licensed under the Open Software License version 3.0.
+
 import pygame
 from pygame.locals import *
 from pygame.rect import Rect

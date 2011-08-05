@@ -1,3 +1,6 @@
+# Copyright (c) 2011 Igor Kaplounenko.
+# Licensed under the Open Software License version 3.0.
+
 class Context(object):
     ctx=None
 
