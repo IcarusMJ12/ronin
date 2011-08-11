@@ -1,6 +1,7 @@
 # Copyright (c) 2011 Igor Kaplounenko.
 # Licensed under the Open Software License version 3.0.
 
+import logging
 import globals
 from fov import FOV
 from reality import Grid

@@ -122,12 +122,12 @@ class LinePair(object):
         if lp1_line==1:
             right=lp1.right
             left=lp2.left
-            if not reflex and LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= 0:
+            if not reflex and LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= LinePair.EPSILON:
                 reflex=True
         else:
             left=lp1.left
             right=lp2.right
-            if not reflex and LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= 0:
+            if not reflex and LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= LinePair.EPSILON:
                 reflex=True
         lp=LinePair(None,None,reflex)
         lp._left=left
@@ -151,17 +151,17 @@ class LinePair(object):
                 return (-1,2) #assuming next linepair is right
         right=LinePair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
         if is_debug:
-            logging.debug('\t\t'+str(right))
+            logging.debug('\t\tright:'+str(right))
         if right > -LinePair.EPSILON and right < LinePair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
-            right=0
+            right=0 #tangent
         if right > 1.0-LinePair.EPSILON:
-            right=1
+            right=1 #fully contained
         if not self.is_reflex:
             if right < 0:
                 return (-1,2)
         left=-LinePair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
         if is_debug:
-            logging.debug('\t\t'+str(left))
+            logging.debug('\t\tleft:'+str(left))
         if left > -LinePair.EPSILON and left < LinePair.EPSILON:
             left=0
         if left > 1.0-LinePair.EPSILON:
@@ -169,7 +169,7 @@ class LinePair(object):
         if not self.is_reflex:
             if left < 0:
                 return (-1,1)
-            if left < 1 and left < right:
+            if left < right:
                 return (left, 1)
             if right < 1:
                 return (right, 2)
@@ -196,12 +196,12 @@ class LinePair(object):
     
     @classmethod
     def _cross(self, p1, p2, p3):
-        """Returns 1, 0, or -1, if p3 is left, on, or right of the line going from p1 to p2."""
+        """Returns positive value, 0, or negative value, if p3 is left, on, or right of the line going from p1 to p2."""
         return (p2[0]-p1[0])*(p3[1]-p1[1])-(p2[1]-p1[1])*(p3[0]-p1[0])
 
     @classmethod
     def _crossVectors(self, v1, v2):
-        """Returns 1, 0, or -1, if v2 is counter-clockwise, on, or clockwise of v2."""
+        """Returns positive value, 0, or negative value, if v2 is counter-clockwise, on, or clockwise of v2."""
         return v1[0]*v2[1]-v1[1]*v2[0]
 
 class Locus(object):
@@ -288,6 +288,11 @@ class FOV(object):
                 break
             if is_debug:
                 logging.debug(str(l)+' '+str(len_linepairs))
+                logging.debug('------------------')
+                logging.debug('current linepairs:')
+                for linepair in linepairs:
+                    logging.debug(str(linepair))
+                logging.debug('------------------')
             if l.d_2 > d_2:
                 d_2=l.d_2
                 lp_index=0 #restarting
@@ -300,7 +305,7 @@ class FOV(object):
                 (lp1, fresh1)=linepairs[lp_index]
                 (cover1, line1) = lp1.calculateCover(l)
                 if is_debug:
-                    logging.debug('lp1: '+str(lp1))
+                    logging.debug('lp1 ['+str(lp_index)+']: '+str(lp1))
                     logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
@@ -317,13 +322,17 @@ class FOV(object):
                 if cover1>=0: #jackpot?
                     if len_linepairs>1:
                         if line1==1 and direction!=1:
+                            if is_debug:
+                                debug_index=(lp_index-1)%len_linepairs
                             (lp2, fresh2)=linepairs[(lp_index-1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
                         elif direction!=-1: #line1==2
+                            if is_debug:
+                                debug_index=(lp_index-1)%len_linepairs
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
                         if is_debug:
-                            logging.debug('lp2: '+str(lp2))
+                            logging.debug('lp2: ['+str(debug_index)+']'+str(lp2))
                             logging.debug('fresh2: '+str(fresh2)+' cover2: '+str(cover2)+' line2: '+str(line2))
                         if cover2>=0 and line2==line1:
                             logging.error(str(me))
