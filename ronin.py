@@ -4,7 +4,7 @@
 
 import pygame
 from pygame.locals import *
-from lie import input, messages, monofont, turns, ui, savefile
+from lie import input_handling, messages, monofont, turns, ui, savefile
 from lie.gridview import HexGridView, computeTileColor
 from lie.mapgen import CellularAutomata
 from lie.perception import PGrid
@@ -38,11 +38,11 @@ def dontQuit():
     ctx.message_buffer.flush()
     ctx.screen_manager.current.handlers.pop()
 
-def quit():
+def tryQuit():
     """Quit without saving."""
     ctx=Context.getContext()
     ctx.message_buffer.addMessage("Commit seppuku? [y/N]")
-    quit_handler=input.InputHandler()
+    quit_handler=input_handling.InputHandler()
     quit_handler.addFunction(dontQuit, K_RETURN)
     quit_handler.addFunction(dontQuit, K_SPACE)
     quit_handler.addFunction(dontQuit, K_n)
@@ -89,9 +89,9 @@ def player_post():
     ctx=Context.getContext()
     if not len(ctx.enemies):
         ctx.message_buffer.addMessage("All oni have been slain and you emerged victorious!")
-        victory_handler=input.InputHandler()
-        victory_handler.addFunction(quit, K_RETURN)
-        victory_handler.addFunction(quit, K_SPACE)
+        victory_handler=input_handling.InputHandler()
+        victory_handler.addFunction(tryQuit, K_RETURN)
+        victory_handler.addFunction(tryQuit, K_SPACE)
         ctx.screen_manager.current.handlers.push(victory_handler)
 
 def enemies_phase():
@@ -118,7 +118,7 @@ def init():
     #setup event handler
     pygame.event.set_allowed(None)
     pygame.event.set_allowed([KEYDOWN])
-    handler=input.InputHandler()
+    handler=input_handling.InputHandler()
     handler.addFunction(ctx.pc.moveSE, K_j)
     handler.addFunction(ctx.pc.moveNW, K_k)
     handler.addFunction(ctx.pc.moveN, K_y)
@@ -126,7 +126,7 @@ def init():
     handler.addFunction(ctx.pc.moveE, K_b)
     handler.addFunction(ctx.pc.moveS, K_n)
     handler.addFunction(ctx.pc.idle, K_PERIOD)
-    handler.addFunction(quit, K_q, (KMOD_CTRL,))
+    handler.addFunction(tryQuit, K_q, (KMOD_CTRL,))
     handler.addFunction(save, K_s, (KMOD_SHIFT,))
 
     #setup screen manager
