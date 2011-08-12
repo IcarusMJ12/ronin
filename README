@@ -3,6 +3,6 @@ You need python (tested with 2.6+) and pygame installed.
 Run ./ronin.py
 
 Currently only the original roguelike keys are supported (jkyubn).  As the grid is hex, left-right movement isn't possible.
-Walk into an oni to kill it; if it walks into you you die and the game terminates.  Ctrl+q quits the game.
+Walk into an oni to kill it; if it walks into you you die and the game terminates.  Ctrl+q quits the game.  Shift+s saves the game.  It will be loaded automatically.
 
 Gameplay presently is quite pathetic, but it's a good (but slow) showcase of the FOV algorithm.
