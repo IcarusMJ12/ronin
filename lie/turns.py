@@ -4,11 +4,17 @@
 class TurnManager(object):
     def __init__(self):
         self._phases=[]
+        self._completed_phases=[]
     
     def run(self):
         while True:
-            for phase in self._phases:
-                phase.run()
+            try:
+                phase=self._phases[0]
+            except IndexError:
+                self._phases=self._completed_phases
+                continue
+            phase.run()
+            self._completed_phases.append(self._phases.pop(0))
     
     def add(self, phase):
         assert(isinstance(phase,TurnPhase))
@@ -21,14 +27,21 @@ class TurnPhase(object):
         self._pre=None
         self._phase=phase
         self._post=None
+        self._current=0
     
     def run(self):
-        if self._pre is not None:
-            self._pre()
-        while not self._phase():
-            pass
-        if self._post is not None:
-            self._post()
+        if self._current==0:
+            if self._pre is not None:
+                self._pre()
+            self._current+=1
+        if self._current==1:
+            while not self._phase():
+                pass
+            self._current+=1
+        if self._current==2:
+            if self._post is not None:
+                self._post()
+            self._current=0
     
     def setPre(self, pre):
         if pre is not None:
