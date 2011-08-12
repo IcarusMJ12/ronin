@@ -4,8 +4,8 @@
 
 import pygame
 from pygame.locals import *
-from lie import input_handling, messages, monofont, turns, ui, savefile
-from lie.gridview import HexGridView, computeTileColor
+from lie import input_handling, messages,  turns, ui, savefile
+from lie.gridview import HexGridView
 from lie.mapgen import CellularAutomata
 from lie.perception import PGrid
 from lie.objects import *
