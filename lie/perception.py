@@ -3,7 +3,7 @@
 
 import logging
 import globals
-from fov import FOV
+from asp_spa import FOV
 from reality import Grid
 
 class PTile(object):
