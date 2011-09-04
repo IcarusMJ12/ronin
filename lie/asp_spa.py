@@ -10,7 +10,7 @@ from exceptions import AssertionError
 SQRT3_4=sqrt(3.0/4)
 is_debug=False
 
-__all__=['LinePair', 'Locus','FOV']
+__all__=['RayPair', 'Locus','FOV']
 
 def _clockwiseCompare(p1, p2):
     """Compares items by clockwise direction starting at the positive y axis.
@@ -33,8 +33,8 @@ def _clockwiseCompare(p1, p2):
         return 0
     return 1
 
-class LinePair(object):
-    """A line pair is defined by two pairs of points and whether these lines form a reflex angle."""
+class RayPair(object):
+    """A vector pair is defined by two pairs of points and whether these lines form a reflex angle."""
     id=1
     count_processed=0
     EPSILON=0.001 #woo yay, trying to compensate for floating point computation inaccuracies
@@ -42,11 +42,11 @@ class LinePair(object):
     def __init__(self, left, right, reflex=False):
         self.left=left  #left ray, as a (point, unit vector)
         self.right=right #right ray, as a (point, unit vector)
-        self.is_reflex=reflex #when considered from the intersection, whether the line pair makes a reflex angle (>pi)
+        self.is_reflex=reflex #when considered from the intersection, whether the vector pair makes a reflex angle (>pi)
         self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
         self.culprits=[] #debug info
-        self.id=LinePair.id
-        LinePair.id+=1
+        self.id=RayPair.id
+        RayPair.id+=1
         if is_debug:
             logging.debug("Created linepair "+str(self.id))
     
@@ -75,7 +75,7 @@ class LinePair(object):
     right=property(getRight, setRight)
 
     def __repr__(self):
-        r="LinePair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
+        r="RayPair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
         if self.is_world:
             r+=" (W)"
         elif self.is_reflex:
@@ -90,7 +90,7 @@ class LinePair(object):
         return _clockwiseCompare(self.right[0], other.right[0])
     
     def mergeLocus(self, locus, line):
-        """Updates the LinePair to contain the LOS-blocking locus provided."""
+        """Updates the RayPair to contain the LOS-blocking locus provided."""
         self.culprits.append(locus)
         if is_debug:
             logging.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
@@ -98,18 +98,18 @@ class LinePair(object):
             self.is_world=True
             return self
         if line==1:
-            if LinePair._cross(self.right[0],self.left[0],locus.n) <= 0:
+            if RayPair._cross(self.right[0],self.left[0],locus.n) <= 0:
                 self.is_reflex=True
             self.left=(locus.n, locus.coord+locus.n)
         else:
-            if LinePair._cross(self.left[0],self.right[0],-locus.n) >= 0:
+            if RayPair._cross(self.left[0],self.right[0],-locus.n) >= 0:
                 self.is_reflex=True
             self.right=(-locus.n, locus.coord-locus.n)
         return self
     
     @classmethod
     def mergePairsByLocus(self, lp1_tuplet, lp2_tuplet):
-        """Merges two LinePairs by a LOS-blocking locus that they share."""
+        """Merges two RayPairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
         if is_debug:
@@ -122,14 +122,14 @@ class LinePair(object):
         if lp1_line==1:
             right=lp1.right
             left=lp2.left
-            if not reflex and LinePair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= LinePair.EPSILON:
+            if not reflex and RayPair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= RayPair.EPSILON:
                 reflex=True
         else:
             left=lp1.left
             right=lp2.right
-            if not reflex and LinePair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= LinePair.EPSILON:
+            if not reflex and RayPair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= RayPair.EPSILON:
                 reflex=True
-        lp=LinePair(None,None,reflex)
+        lp=RayPair(None,None,reflex)
         lp._left=left
         lp._right=right
         lp.culprits=lp1.culprits
@@ -138,33 +138,33 @@ class LinePair(object):
 
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
-        LinePair.count_processed+=1
+        RayPair.count_processed+=1
         if(self.is_world):
             if is_debug:
                 logging.debug("We are world!")
             return (1.0,0)
         if not self.is_reflex:
             n=-(self.right[0]+self.left[0])/2
-            if LinePair._cross(self.left[0],self.right[0], l.coord+n)<0:
+            if RayPair._cross(self.left[0],self.right[0], l.coord+n)<0:
                 if is_debug:
                     logging.debug("We are south of the line.")
                 return (-1,2) #assuming next linepair is right
-        right=LinePair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
+        right=RayPair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
         if is_debug:
             logging.debug('\t\tright:'+str(right))
-        if right > -LinePair.EPSILON and right < LinePair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
+        if right > -RayPair.EPSILON and right < RayPair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
             right=0 #tangent
-        if right > 1.0-LinePair.EPSILON:
+        if right > 1.0-RayPair.EPSILON:
             right=1 #fully contained
         if not self.is_reflex:
             if right < 0:
                 return (-1,2)
-        left=-LinePair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
+        left=-RayPair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
         if is_debug:
             logging.debug('\t\tleft:'+str(left))
-        if left > -LinePair.EPSILON and left < LinePair.EPSILON:
+        if left > -RayPair.EPSILON and left < RayPair.EPSILON:
             left=0
-        if left > 1.0-LinePair.EPSILON:
+        if left > 1.0-RayPair.EPSILON:
             left=1
         if not self.is_reflex:
             if left < 0:
@@ -180,10 +180,10 @@ class LinePair(object):
         if(self.left[0].dot(self.right[0])>0):  #angle between normals between -90 and 90
             if left == 1 and right == 1:
                 return (1.0, 0)
-            if left - LinePair.EPSILON > right:
+            if left - RayPair.EPSILON > right:
                 return (left, 1)
-            if left + LinePair.EPSILON > right: #typically l and r are the same line...
-                if LinePair._cross((0,0),self.left[0],l.coord)<0:
+            if left + RayPair.EPSILON > right: #typically l and r are the same line...
+                if RayPair._cross((0,0),self.left[0],l.coord)<0:
                     return (left, 1)
             return (right, 2)
         if left == 1 or right == 1:
@@ -235,9 +235,9 @@ class Locus(object):
     def __repr__(self):
         return "Locus<x:"+str(self.id[0])+" y:"+str(self.id[1])+" ["+str(self.coord)+"] d^2:"+str(self.d_2)+" ("+str(self.blocksLOS)+")>"
     
-    def toLinePair(self):
-        """Returns the relevant LinePair for this locus, used if this locus blocks line of sight."""
-        lp=LinePair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
+    def toRayPair(self):
+        """Returns the relevant RayPair for this locus, used if this locus blocks line of sight."""
+        lp=RayPair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
         lp.culprits.append(self)
         if is_debug:
             logging.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
@@ -252,7 +252,7 @@ class FOV(object):
         #   globals()['is_debug']=True
         #else:
         #   globals()['is_debug']=False
-        LinePair.id=1
+        RayPair.id=1
         if linepairs is None:
             linepairs=[]
         loci=[Locus((i[0]-me[0],i[1]-me[1],i[2])) for i in world]
@@ -345,7 +345,7 @@ class FOV(object):
                     l.cover=max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2))
                     if l.blocksLOS:
                         if cover2>=0:
-                            lp=LinePair.mergePairsByLocus((lp1, line1), (lp2, line2))
+                            lp=RayPair.mergePairsByLocus((lp1, line1), (lp2, line2))
                             lp.culprits.append(l)
                             linepairs[lp_index]=[lp,fresh1|fresh2]
                             if line1==1:
@@ -368,12 +368,12 @@ class FOV(object):
                     break
                 lp_index=(lp_index+direction)%len_linepairs
             if not processed and l.cover==0 and l.blocksLOS:
-                linepairs.append([l.toLinePair(),3])
+                linepairs.append([l.toRayPair(),3])
                 len_linepairs+=1
                 linepairs.sort()
             ret.append(l)
         (x,y)=(me[0],me[1])
-        logging.debug("LinePairs processed: "+str(LinePair.count_processed))
+        logging.debug("RayPairs processed: "+str(RayPair.count_processed))
         return [((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret]
 
 if __name__ == '__main__':

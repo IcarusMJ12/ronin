@@ -6,7 +6,7 @@ from pygame.locals import *
 from pygame.rect import Rect
 from widgets import TextBlock
 import logging
-from input import InputHandler
+from input_handling import InputHandler
 import globals
 
 class MessageBuffer(object):

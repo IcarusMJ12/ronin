@@ -6,6 +6,9 @@ from objects import *
 from exceptions import NotImplementedError
 import logging
 
+HEX_NEIGHBORS=((1,1),(-1,-1),(0,-1),(-1,0),(1,0),(0,1))
+SQUARE_NEIGHBORS=((1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1))
+
 class Tile(object):
     """A tile containing actual game objects.  Floor implied."""
     def __init__(self, loc):
@@ -64,10 +67,11 @@ class Grid(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def __init__(self,width,height):
+    def __init__(self,width,height,neighbors=HEX_NEIGHBORS):
         self.width=width
         self.height=height
         self.grid=None
+        self.neighbors=neighbors
     
     def __getitem__(self,loc):
         return self.grid[loc[0]][loc[1]]
@@ -83,6 +87,18 @@ class Grid(object):
     def markClean(self):
         for tile in self.tiles:
             tile.dirty=0
+
+    def areAdjacent(self, loc1, loc2):
+        return (loc1[0]-loc2[0],loc1[1]-loc2[1]) in self.neighbors
+
+    def getNeighbors(self, loc):
+        neighbors=[]
+        for l in self.neighbors:
+            try:
+                neighbors.append(self[loc[0]+l[0],loc[1]+l[1]])
+            except IndexError:
+                pass
+        return neighbors
 
 class Level(Grid):
     """A world level containing tiles."""

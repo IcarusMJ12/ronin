@@ -5,7 +5,7 @@ import pygame
 from pygame.locals import *
 from lie.context import Context as Context
 import logging
-from lie.input import InputHandler
+from lie.input_handling import InputHandler
 import lie.objects
 
 __all__=['PC', 'Oni']

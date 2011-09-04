@@ -2,7 +2,7 @@
 # Licensed under the Open Software License version 3.0.
 
 import pygame
-from input import InputHandlerManager
+from input_handling import InputHandlerManager
 
 class ScreenManager(object):
     def __init__(self, screen):
