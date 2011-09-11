@@ -99,7 +99,7 @@ class Grid(object):
             except IndexError:
                 pass
         return neighbors
-
+    
 class Level(Grid):
     """A world level containing tiles."""
     def __init__(self,width,height):

@@ -148,6 +148,10 @@ if __name__ == '__main__':
         #populate world
         generator=CellularAutomata(Random(1), Floor, Wall)
         ctx.world=generator.generateLevel(51,25)
+        pockets=generator.getPockets(ctx.world)
+        for pocket in pockets[1:]:
+            for tile in pocket:
+                tile.terrain=Wall()
         tile=ctx.world[26,16]
         tile.actor=ctx.pc
         ctx.pc.parent=tile
