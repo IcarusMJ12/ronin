@@ -114,11 +114,11 @@ class RayPair(object):
         (lp2,lp2_line)=lp2_tuplet
         if is_debug:
             logging.debug("Merging linepairs "+str(lp1.id)+' '+str(lp1_line)+" and "+str(lp2.id)+' '+str(lp2_line))
-        assert(lp1!=lp2)
+        assert lp1!=lp2,str(lp1)+'=='+str(lp2)
         right=None
         left=None
         reflex=(lp1.is_reflex or lp2.is_reflex)
-        assert(lp1_line!=lp2_line)
+        assert lp1_line!=lp2_line, str(lp1_line)+'=='+str(lp2_line)
         if lp1_line==1:
             right=lp1.right
             left=lp2.left
@@ -274,7 +274,7 @@ class FOV(object):
         len_linepairs=len(linepairs)
         lp_index=0 #start with the 'leftmost' linepair again
         while True:
-            assert(sum([lp[0].is_reflex for lp in linepairs])<2)
+            assert sum([lp[0].is_reflex for lp in linepairs])<2, 'sum>=2'
             wc=sum([lp[0].is_world for lp in linepairs])
             if wc:
                 if len_linepairs!=1:
@@ -341,7 +341,7 @@ class FOV(object):
                             logging.error('lp1: '+str(lp1))
                             logging.error('lp2: '+str(lp2))
                             raise AssertionError("line1 == line2")
-                        assert(line2!=3)
+                        assert line2!=3, 'line2==3'
                     l.cover=max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2))
                     if l.blocksLOS:
                         if cover2>=0:
@@ -380,6 +380,14 @@ if __name__ == '__main__':
     import unittest
     import copy
     from sys import argv
+    from getopt import getopt, GetoptError
+
+    def usage():
+        print "Usage: "
+        print ""
+        print '\t'+argv[0]+' -h|--help'
+        print '\t'+argv[0]+' [-u|--unit] [<test> ...]'
+        print '\t'+argv[0]+' -r|--regression [-s|--seeds <X>[-<Y>]] [-g|--geometry <W>x<H>]'
 
     class FOVTest(unittest.TestCase):
         """Performs a series of tests by running FOV's calculateHexFOV function on a 5x5 world with different scenarios."""
@@ -410,7 +418,7 @@ if __name__ == '__main__':
             except ValueError:
                 pass
             l=len(tilesets)
-            assert(l==len(cover_values))
+            assert l==len(cover_values),'l!=len(cover_values)'
             for i in xrange(l):
                 if tilesets[i] and not isinstance(tilesets[i],list):
                     tilesets[i]=[tilesets[i]]
@@ -638,10 +646,81 @@ if __name__ == '__main__':
             res=self.fov.calculateHexFOV(me,world)
             self._checkResult(res,[(1,1),(1,2),(2,1),(2,2),(2,3),(3,2),(3,3),(4,0),(4,1),(4,2)],0,[(3,0),(3,1),(4,3)],self.almost_cover,None,1)
 
-    suite = None
-    if len(argv)>1:
-        tests=argv[1:]
-        suite = unittest.TestSuite(map(FOVTest,tests))
-    else:
-        suite = unittest.TestLoader().loadTestsFromTestCase(FOVTest)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    (opts,args)=(None,None)
+    unit=False
+    regression=False
+    seeds=(0,255)
+    geometry=(25,25)
+    try:
+        opts, args = getopt(argv[1:], "hurs:g:", ['help','unit','regression','seeds','geometry'])
+        for opt, arg in opts:
+            if opt in ('-h','--help'):
+                usage()
+                exit(0)
+            if opt in ('-u','--unit'):
+                unit=True
+            elif opt in ('-r','--regression'):
+                regression=True
+            elif opt in ('-s','--seeds'):
+                if '-' in arg:
+                    seeds=arg.split('-')
+                else:
+                    seeds=(arg,arg)
+            elif opt in ('-g','--geometry'):
+                geometry=arg.split('x')
+                geometry=(int(geometry[0]),int(geometry[1]))
+        if unit and regression:
+            raise GetoptError
+        if not regression:
+            unit=True
+    except GetoptError:
+        usage()
+        exit(1)
+    if unit:
+        suite = None
+        if len(args)>0:
+            suite = unittest.TestSuite(map(FOVTest,args))
+        else:
+            suite = unittest.TestLoader().loadTestsFromTestCase(FOVTest)
+        unittest.TextTestRunner(verbosity=2).run(suite)
+    elif regression:
+        from mapgen import CellularAutomata
+        from objects import Floor, Wall
+        from sys import exc_info
+        from random import Random
+
+        fov=FOV()
+        errors=[]
+        successes=0
+        for seed in xrange(int(seeds[0]),int(seeds[1])+1):
+            print "processing world for seed "+str(seed)
+            generator=CellularAutomata(Random(seed),Floor,Wall)
+            level=generator.generateLevel(geometry[0],geometry[1])
+            tiles=[level[geometry[0]/2,geometry[1]/2]]
+            done_tiles=[]
+            while tiles[0].blocksLOS():
+                tile=tiles.pop(0)
+                tiles.extend([t for t in level.getNeighbors(tile.loc) if t not in tiles and t not in done_tiles])
+                done_tiles.append(tile)
+            tile=tiles[0]
+            world=[(i,j,level[i,j].blocksLOS()) for i in xrange(level.width) for j in xrange(level.height)]
+            me=(tile.loc[0],tile.loc[1],False)
+            try:
+                result=fov.calculateHexFOV(me,world)
+                for item in result:
+                    if item[1]>1:
+                        raise AssertionError("cover > 1")
+                successes+=1
+            except AssertionError as e:
+                errors.append((seed,geometry,e,me,world,level))
+        len_errors=len(errors)
+        if len_errors>0:
+            print "Failed with "+str(len_errors)+" errors."
+            for error in errors:
+                print "seed:"+str(error[0])+" geometry:"+str(error[1])+" error:"+str(error[2])
+                print '\t'+str(error[3])
+                print '\t'+str(error[4])
+            exit(1)
+        else:
+            print str(successes)+" tests completed successfully."
+            exit(0)

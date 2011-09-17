@@ -15,6 +15,7 @@ class BaseObject(object):
     @abc.abstractmethod
     def __init__(self):
         self.blocks_los=False
+        self.description=''
 
 class Terrain(BaseObject):
     """A terrain feature."""
@@ -37,6 +38,7 @@ class Floor(Terrain):
     def __init__(self):
         super(Floor, self).__init__(Actor)
         self.symbol=u'\u00b7'
+        self.blocks_los=False
 
 class Wall(Terrain):
     """An impassable wall."""
