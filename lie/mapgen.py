@@ -25,7 +25,6 @@ class DisjointSetNode(object):
         return self.parent
     
     def join(self, other):
-        logging.debug('joining'+str(self)+str(other))
         root1=self.getRootAndCompress()
         root2=other.getRootAndCompress()
         if root1==root2:
@@ -130,7 +129,6 @@ class CellularAutomata(object):
                 tile=level[row,col]
                 if not tile.blocksLOS():
                     node=DisjointSetNode(tile)
-                    logging.debug(str(node))
                     if len(current_row) and level.areAdjacent(node.data.loc, current_row[-1].data.loc):
                         current_row[-1].join(node)
                     for index in range(previous_row_index,len_previous_row):

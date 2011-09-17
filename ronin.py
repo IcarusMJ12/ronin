@@ -2,8 +2,13 @@
 #Copyright (c) 2011 Igor Kaplounenko
 #This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ or send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
 
+import logging
+from random import Random
+import sys
+import time
 import pygame
 from pygame.locals import *
+
 from lie import input_handling, messages,  turns, ui, savefile
 from lie.gridview import HexGridView
 from lie.mapgen import CellularAutomata
@@ -12,9 +17,6 @@ from lie.objects import *
 import lie.globals
 from lie.context import Context as Context
 from objects import *
-import logging
-from random import Random
-import sys
 #import profile
 
 #import psyco
@@ -109,7 +111,7 @@ def init():
     ctx=Context.getContext()
     #get random
     if not ctx.random:
-        ctx.random = Random(0)
+        ctx.random = Random()
 
     #get PC -- important for functions below
     if not ctx.pc:
@@ -146,13 +148,27 @@ if __name__ == '__main__':
         ctx=Context.getContext()
         ctx.quit=reallyQuit
         #populate world
-        generator=CellularAutomata(Random(1), Floor, Wall)
-        ctx.world=generator.generateLevel(51,25)
-        pockets=generator.getPockets(ctx.world)
-        for pocket in pockets[1:]:
-            for tile in pocket:
-                tile.terrain=Wall()
-        tile=ctx.world[26,16]
+        now=time.time()
+        logging.info("Level generation seed: "+str(now))
+        generator=CellularAutomata(Random(now), Floor, Wall)
+        while True:
+            ctx.world=generator.generateLevel(51,25)
+            pockets=generator.getPockets(ctx.world)
+            if len(pockets[0])>400:
+                for pocket in pockets[1:]:
+                    for tile in pocket:
+                        tile.terrain=Wall()
+                break
+            logging.info("trying again...")
+        done_tiles=[]
+        tiles=[ctx.world[26,16]]
+        while tiles[0].blocksLOS():
+            tile=tiles.pop(0)
+            tiles.extend([t for t in ctx.world.getNeighbors(tile.loc) if t not in tiles and t not in done_tiles])
+            done_tiles.append(tile)
+        tile=tiles[0]
+        del done_tiles
+        del tiles
         tile.actor=ctx.pc
         ctx.pc.parent=tile
         ctx.pc.perception=PGrid(ctx.world, ctx.pc)
