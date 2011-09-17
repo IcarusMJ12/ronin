@@ -154,8 +154,8 @@ if __name__ == '__main__':
         while True:
             ctx.world=generator.generateLevel(51,25)
             pockets=generator.getPockets(ctx.world)
-            if len(pockets[0])>400:
-                for pocket in pockets[1:]:
+            if len(pockets[-1])>400:
+                for pocket in pockets[0:-1]:
                     for tile in pocket:
                         tile.terrain=Wall()
                 break
