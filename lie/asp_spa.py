@@ -37,7 +37,7 @@ class RayPair(object):
     """A vector pair is defined by two pairs of points and whether these lines form a reflex angle."""
     id=1
     count_processed=0
-    EPSILON=0.001 #woo yay, trying to compensate for floating point computation inaccuracies
+    EPSILON=0.0000001 #woo yay, trying to compensate for floating point computation inaccuracies
 
     def __init__(self, left, right, reflex=False):
         self.left=left  #left ray, as a (point, unit vector)
@@ -98,11 +98,11 @@ class RayPair(object):
             self.is_world=True
             return self
         if line==1:
-            if RayPair._cross(self.right[0],self.left[0],locus.n) <= 0:
+            if RayPair._cross(self.right[0],self.left[0],locus.n) <= RayPair.EPSILON:
                 self.is_reflex=True
             self.left=(locus.n, locus.coord+locus.n)
         else:
-            if RayPair._cross(self.left[0],self.right[0],-locus.n) >= 0:
+            if RayPair._cross(self.left[0],self.right[0],-locus.n) >= -RayPair.EPSILON:
                 self.is_reflex=True
             self.right=(-locus.n, locus.coord-locus.n)
         return self
@@ -149,11 +149,6 @@ class RayPair(object):
                 if is_debug:
                     logging.debug("We are south of the line.")
                 return (-1,2) #assuming next linepair is right
-        #(left,right)=(0,0)
-        #if self.is_reflex:
-        #   right=RayPair._cross((0,0),self.left[0]+self.right[0],l.coord)
-        #   left=-right
-        #if right>0 or not self.is_reflex:
         right=RayPair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
         if is_debug:
             logging.debug('\t\tright:'+str(right))
@@ -164,7 +159,6 @@ class RayPair(object):
         if not self.is_reflex:
             if right < 0:
                 return (-1,2)
-        #if left>0 or not self.is_reflex:
         left=-RayPair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
         if is_debug:
             logging.debug('\t\tleft:'+str(left))
@@ -761,6 +755,7 @@ if __name__ == '__main__':
         import globals
         from __init__ import init
 
+        is_debug=True
         logging.basicConfig(level=logging.DEBUG)
 
         if seeds[0]!=seeds[1]:
