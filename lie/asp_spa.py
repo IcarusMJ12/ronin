@@ -149,6 +149,11 @@ class RayPair(object):
                 if is_debug:
                     logging.debug("We are south of the line.")
                 return (-1,2) #assuming next linepair is right
+        #(left,right)=(0,0)
+        #if self.is_reflex:
+        #   right=RayPair._cross((0,0),self.left[0]+self.right[0],l.coord)
+        #   left=-right
+        #if right>0 or not self.is_reflex:
         right=RayPair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
         if is_debug:
             logging.debug('\t\tright:'+str(right))
@@ -159,6 +164,7 @@ class RayPair(object):
         if not self.is_reflex:
             if right < 0:
                 return (-1,2)
+        #if left>0 or not self.is_reflex:
         left=-RayPair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
         if is_debug:
             logging.debug('\t\tleft:'+str(left))
@@ -247,7 +253,13 @@ class FOV(object):
     """Field of View calculator."""
     def calculateHexFOV(self, me, world, linepairs=None):
         """Calculate Field of View from triples of the form (x,y,blocksLOS) where x and y are in hex coordinates."""
-        logging.info(str(me))
+        result=None
+        for result in self.hexFOVGenerator(me, world, linepairs, yield_each_iteration=False):
+            pass
+        return result[0]
+
+    def hexFOVGenerator(self, me, world, linepairs=None, yield_each_iteration=True):
+        """Auxiliary function for calculateHexFOV."""
         #if me==(42,23, False):
         #   globals()['is_debug']=True
         #else:
@@ -372,9 +384,16 @@ class FOV(object):
                 len_linepairs+=1
                 linepairs.sort()
             ret.append(l)
+            if yield_each_iteration:
+                (x,y)=(me[0],me[1])
+                try:
+                    next_locus = loci[-1]
+                    yield ([((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret],next_locus.id)
+                except IndexError:
+                    pass
         (x,y)=(me[0],me[1])
         logging.debug("RayPairs processed: "+str(RayPair.count_processed))
-        return [((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret]
+        yield ([((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret],None)
 
 if __name__ == '__main__':
     import unittest
@@ -388,6 +407,7 @@ if __name__ == '__main__':
         print '\t'+argv[0]+' -h|--help'
         print '\t'+argv[0]+' [-u|--unit] [<test> ...]'
         print '\t'+argv[0]+' -r|--regression [-s|--seeds <X>[-<Y>]] [-g|--geometry <W>x<H>]'
+        print '\t'+argv[0]+' -t|--step-through -s|--seeds <X>'
 
     class FOVTest(unittest.TestCase):
         """Performs a series of tests by running FOV's calculateHexFOV function on a 5x5 world with different scenarios."""
@@ -649,10 +669,11 @@ if __name__ == '__main__':
     (opts,args)=(None,None)
     unit=False
     regression=False
+    step_through=False
     seeds=(0,255)
     geometry=(25,25)
     try:
-        opts, args = getopt(argv[1:], "hurs:g:", ['help','unit','regression','seeds','geometry'])
+        opts, args = getopt(argv[1:], "hurs:g:t", ['help','unit','regression','seeds','geometry','step-through'])
         for opt, arg in opts:
             if opt in ('-h','--help'):
                 usage()
@@ -669,14 +690,17 @@ if __name__ == '__main__':
             elif opt in ('-g','--geometry'):
                 geometry=arg.split('x')
                 geometry=(int(geometry[0]),int(geometry[1]))
-        if unit and regression:
+            elif opt in ('-t','--step-through'):
+                step_through=True
+        if unit and regression and step_through:
             raise GetoptError
-        if not regression:
+        if not regression and not step_through:
             unit=True
     except GetoptError:
         usage()
         exit(1)
     if unit:
+        logging.basicConfig(level=logging.INFO)
         suite = None
         if len(args)>0:
             suite = unittest.TestSuite(map(FOVTest,args))
@@ -686,8 +710,9 @@ if __name__ == '__main__':
     elif regression:
         from mapgen import CellularAutomata
         from objects import Floor, Wall
-        from sys import exc_info
         from random import Random
+
+        logging.basicConfig(level=logging.INFO)
 
         fov=FOV()
         errors=[]
@@ -724,3 +749,55 @@ if __name__ == '__main__':
         else:
             print str(successes)+" tests completed successfully."
             exit(0)
+    elif step_through:
+        from random import Random
+        import sys
+
+        from mapgen import CellularAutomata
+        from objects import Floor, Wall
+        import ui
+        from gridview import HexGridView
+        from perception import PGrid
+        import globals
+        from __init__ import init
+
+        logging.basicConfig(level=logging.DEBUG)
+
+        if seeds[0]!=seeds[1]:
+            usage()
+            exit(1)
+        init('asp_spa.conf')
+        generator=CellularAutomata(Random(int(seeds[0])),Floor,Wall)
+        level=generator.generateLevel(geometry[0],geometry[1])
+        tiles=[level[geometry[0]/2,geometry[1]/2]]
+        done_tiles=[]
+        while tiles[0].blocksLOS():
+            tile=tiles.pop(0)
+            tiles.extend([t for t in level.getNeighbors(tile.loc) if t not in tiles and t not in done_tiles])
+            done_tiles.append(tile)
+        tile=tiles[0]
+        world=[(i,j,level[i,j].blocksLOS()) for i in xrange(level.width) for j in xrange(level.height)]
+        me=(tile.loc[0],tile.loc[1],False)
+        perception=PGrid(level, None)
+        for t in perception.getTiles():
+            t.was_seen=True
+        worldview=HexGridView(level, perception)
+        worldview.center(worldview[tile.loc].rect)
+        worldview.draw()
+        for result in perception.fov.hexFOVGenerator(me, world):
+            for r in result[0]:
+                perception[r[0][0],r[0][1]].d2=r[2]
+                if r[1]>1:
+                    logging.error(str(me))
+                    logging.error(str(r))
+                    raise AssertionError("cover > 1")
+                perception[r[0][0],r[0][1]].cover=r[1]
+            try:
+                next_tile=perception[me[0]+result[1][0],me[1]+result[1][1]]
+                next_tile.d2=255
+                next_tile.cover=0
+            except TypeError:
+                pass
+            worldview.draw()
+            print '[press any key...]'
+            sys.stdin.read(1)

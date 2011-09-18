@@ -104,7 +104,8 @@ class HexGridView(GridView, Grid):
         self.level=level
         self.perception=perception
         (width,height)=(level.width,level.height)
-        viewable_area=Rect((0,globals.grid_offset),(min(width*globals.cell_width,globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset)))
+        #viewable_area=Rect((0,globals.grid_offset),(min(width*globals.cell_width*(1.0+globals.scale_horizontally*0.75),globals.screen.get_width()),min(height*globals.cell_height,globals.screen.get_height()-globals.grid_offset)))
+        viewable_area=Rect((0,globals.grid_offset),(globals.screen.get_width(),globals.screen.get_height()-globals.grid_offset))
         Grid.__init__(self,width,height)
         GridView.__init__(self,viewable_area,center)
         self.grid=[[PseudoHexTile((i,j)) for j in xrange(height)] for i in xrange(width)]
