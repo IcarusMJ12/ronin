@@ -17,6 +17,7 @@ from lie.objects import *
 import lie.globals
 from lie.context import Context as Context
 from objects import *
+from lie.look import lookMode
 #import profile
 
 #import psyco
@@ -128,6 +129,7 @@ def init():
     handler.addFunction(ctx.pc.moveE, K_b)
     handler.addFunction(ctx.pc.moveS, K_n)
     handler.addFunction(ctx.pc.idle, K_PERIOD)
+    handler.addFunction(lookMode, K_l)
     handler.addFunction(tryQuit, K_q, (KMOD_CTRL,))
     handler.addFunction(save, K_s, (KMOD_SHIFT,))
 

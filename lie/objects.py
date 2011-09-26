@@ -15,7 +15,14 @@ class BaseObject(object):
     @abc.abstractmethod
     def __init__(self):
         self.blocks_los=False
-        self.description=''
+    
+    def getLongDescription(self, visibility=None):
+        """Returns docstring by default.  You should probably override this."""
+        return self.__doc__ or ''
+
+    def getShortDescription(self, visibility=None):
+        """Returns docstring by default.  You should probably override this."""
+        return self.__doc__ or ''
 
 class Terrain(BaseObject):
     """A terrain feature."""
@@ -54,6 +61,7 @@ class Actor(BaseObject):
     @abc.abstractmethod
     def __init__(self):
         super(Actor, self).__init__()
+        self.perception=None
 
     def moveToTile(self, tile):
         if(tile.isPassableBy(self)):

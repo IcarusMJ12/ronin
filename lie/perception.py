@@ -5,6 +5,7 @@ import logging
 import globals
 from asp_spa import FOV
 from reality import Grid
+from objects import Actor
 
 class PTile(object):
     def __init__(self, tile):
@@ -14,6 +15,7 @@ class PTile(object):
         self._d2=0
         self.was_seen=False
         self.dirty=1
+        self.memory=None
     
     def setCover(self,val):
         if self._cover==val:
@@ -43,8 +45,9 @@ class PTile(object):
         if not self.was_seen:
             return None
         if self.cover==1:
-            return self.tile.terrain
-        return self.tile.top()
+            return self.memory
+        self.memory=self.tile.top()
+        return self.memory
 
 class PGrid(Grid):
     def __init__(self, grid, actor):
@@ -66,3 +69,21 @@ class PGrid(Grid):
                 logging.error(str(r))
                 raise AssertionError("cover > 1")
             self[r[0][0],r[0][1]].cover=r[1]
+        visible_actors=set([tile.top() for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor)])
+        for tile in self.tiles:
+            if tile.cover==1 and tile.memory in visible_actors:
+                tile.memory=None
+    
+    def examineTile(self, loc):
+        objects=None
+        if self[loc].cover==1:
+            objects=[]
+            if self[loc].memory:
+                objects.append(self[loc].memory)
+            if self[loc].was_seen:
+                terrain=self[loc].tile.terrain
+                if terrain not in objects:
+                    objects.append(self[loc].tile.terrain)
+        else:
+            objects=self[loc].tile.contents()
+        return [(id(obj), obj.getShortDescription(self[loc].cover), obj.getLongDescription(self[loc].cover)) for obj in objects]

@@ -22,7 +22,7 @@ class Human(Actor):
         self.symbol='@'
 
 class PC(Human):
-    """The man himself."""
+    """A samurai, armed with a katana and a yumi."""
     def moveBlocked(self,tile):
         ctx=Context.getContext()
         if(tile.actor and isinstance(tile.actor,Oni)):
@@ -40,6 +40,7 @@ class PC(Human):
         return ret
 
 class Oni(Actor):
+    """An ugly, fanged humanoid with a mean disposition, wielding a tetsubo."""
     def __init__(self):
         super(Oni, self).__init__()
         self.symbol='o'

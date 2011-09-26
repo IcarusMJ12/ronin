@@ -54,6 +54,15 @@ class Tile(object):
         if self.items:
             return self.items
         return self.terrain
+
+    def contents(self):
+        contents=[]
+        if self.actor:
+            contents.append(self.actor)
+        if self.items:
+            contents.append(self.items)
+        contents.append(self.terrain)
+        return contents
     
     def isPassableBy(self, actor):
         if(self.actor is not None):
