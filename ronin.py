@@ -93,8 +93,8 @@ def player_post():
     if not len(ctx.enemies):
         ctx.message_buffer.addMessage("All oni have been slain and you emerged victorious!")
         victory_handler=input_handling.InputHandler()
-        victory_handler.addFunction(tryQuit, K_RETURN)
-        victory_handler.addFunction(tryQuit, K_SPACE)
+        victory_handler.addFunction(reallyQuit, K_RETURN)
+        victory_handler.addFunction(reallyQuit, K_SPACE)
         ctx.screen_manager.current.handlers.push(victory_handler)
 
 def enemies_phase():

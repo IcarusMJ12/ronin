@@ -72,7 +72,7 @@ class PGrid(Grid):
         visible_actors=set([tile.top() for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor)])
         for tile in self.tiles:
             if tile.cover==1 and tile.memory in visible_actors:
-                tile.memory=None
+                tile.memory=tile.tile.terrain
     
     def examineTile(self, loc):
         objects=None
