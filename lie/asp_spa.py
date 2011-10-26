@@ -80,8 +80,7 @@ class RayPair(object):
         self.left=left  #left ray, as a (point, unit vector)
         self.right=right #right ray, as a (point, unit vector)
         self.is_reflex=reflex #when considered from the intersection, whether the vector pair makes a reflex angle (>pi)
-        #self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
-        self.left_bound, self.right_bound = False, False
+        self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
         self.culprits=[] #debug info
         self.id=RayPair.id
         RayPair.id+=1
@@ -114,10 +113,8 @@ class RayPair(object):
 
     def __repr__(self):
         r="RayPair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
-        if self.left_bound:
-            r+=" (L)"
-        if self.right_bound:
-            r+=" (R)"
+        if self.is_world:
+            r+=" (W)"
         if self.is_reflex:
             r+=" (ref)"
         r+=">"
@@ -135,7 +132,7 @@ class RayPair(object):
         if is_debug:
             logging.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
         if line==3:
-            self.left_bound, self.right_bound = True, True
+            self.is_world = True
             return self
         if line==1:
             if RayPair._cross(self.right[0],self.left[0],locus.n) <= RayPair.EPSILON:
@@ -161,18 +158,15 @@ class RayPair(object):
         assert lp1_line!=lp2_line, str(lp1_line)+'=='+str(lp2_line)
         if lp1_line==1:
             left,right = lp2.left,lp1.right
-            left_bound, right_bound = lp2.left_bound, lp1.right_bound
             if not reflex and RayPair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= RayPair.EPSILON:
                 reflex=True
         else:
             left,right = lp1.left,lp2.right
-            left_bound, right_bound = lp1.left_bound, lp2.right_bound
             if not reflex and RayPair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= RayPair.EPSILON:
                 reflex=True
         lp=RayPair(None,None,reflex)
         lp._left=left
         lp._right=right
-        lp.left_bound, lp.right_bound = left_bound, right_bound
         lp.culprits=lp1.culprits
         lp.culprits.extend(lp2.culprits)
         return lp
@@ -180,7 +174,7 @@ class RayPair(object):
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
         RayPair.count_processed+=1
-        if(self.right_bound and self.left_bound):
+        if self.is_world:
             if is_debug:
                 logging.debug("We are world!")
             return (1.0,0)
@@ -195,8 +189,6 @@ class RayPair(object):
             logging.debug('\t\tright:'+str(right))
         if right > -RayPair.EPSILON and right < RayPair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
             right=0 #tangent
-        if self.right_bound and right>0:
-            right=1
         elif right > 1.0-RayPair.EPSILON:
             right=1 #fully contained
         if not self.is_reflex:
@@ -207,8 +199,6 @@ class RayPair(object):
             logging.debug('\t\tleft:'+str(left))
         if left > -RayPair.EPSILON and left < RayPair.EPSILON:
             left=0
-        if self.left_bound and left>0:
-            left=1
         elif left > 1.0-RayPair.EPSILON:
             left=1
         if not self.is_reflex:
@@ -284,10 +274,6 @@ class Locus(object):
     def toRayPair(self):
         """Returns the relevant RayPair for this locus, used if this locus blocks line of sight."""
         lp=RayPair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
-        if self.cover_left:
-            lp.left_bound=True
-        if self.cover_right:
-            lp.right_bound=True
         lp.culprits.append(self)
         if is_debug:
             logging.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
@@ -356,7 +342,7 @@ class FOV(object):
         lp_index=0 #start with the 'leftmost' linepair again
         while True:
             assert sum([lp[0].is_reflex for lp in linepairs])<2, 'sum>=2'
-            wc=sum([lp[0].left_bound and lp[0].right_bound for lp in linepairs])
+            wc=sum([lp[0].is_world for lp in linepairs])
             if wc:
                 if len_linepairs!=1:
                     logging.error(str(wc)+' '+str(len_linepairs)+' '+str(len(linepairs)))
@@ -390,17 +376,17 @@ class FOV(object):
                     logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
-                    l.cover_right=max(max(cover1,0.0)*(not fresh1&1),l.cover_right)
-                    l.cover_left=max(max(cover2,0.0)*(not fresh1&2),l.cover_left)
+                    l.cover_right=max(cover1,0.0)*(not fresh1&1)
+                    l.cover_left=max(cover2,0.0)*(not fresh1&2)
                     if l.blocksLOS and lp1.is_reflex:
-                        lp1.right_bound, lp1.left_bound = True, True
+                        lp1.is_world = True
                     processed=True
                     break
                 if cover1 == 1: #guaranteed to be stale line by nature of the algorithm (i.e. adjacencies at same distance cannot completely occlude each other)
                     if line1==2:
-                        l.cover_left=max(cover1,l.cover_left)
+                        l.cover_left=cover1
                     else:
-                        l.cover_right=max(cover1,l.cover_right)
+                        l.cover_right=cover1
                     processed=True
                     break
                 (lp2,fresh2,cover2,line2)=(None,0,-1,0)
@@ -427,17 +413,12 @@ class FOV(object):
                             logging.error('lp2: '+str(lp2))
                             raise AssertionError("line1 == line2")
                         assert line2!=3, 'line2==3'
-                    left_bound, right_bound = False, False
-                    if l.cover_left:
-                        left_bound=True
-                    if l.cover_right:
-                        right_bound=True
                     if line1==2:
-                        l.cover_right=max(max(cover1,0.0)*(not fresh1&line1),l.cover_right)
-                        l.cover_left=max(max(cover2,0.0)*(not fresh2&line2),l.cover_left)
+                        l.cover_right=max(cover1,0.0)*(not fresh1&line1)
+                        l.cover_left=max(cover2,0.0)*(not fresh2&line2)
                     else:
-                        l.cover_left=max(max(cover1,0.0)*(not fresh1&line1),l.cover_left)
-                        l.cover_right=max(max(cover2,0.0)*(not fresh2&line2),l.cover_right)
+                        l.cover_left=max(cover1,0.0)*(not fresh1&line1)
+                        l.cover_right=max(cover2,0.0)*(not fresh2&line2)
                     if l.blocksLOS:
                         if cover2>=0:
                             lp=RayPair.mergePairsByLocus((lp1, line1), (lp2, line2))
@@ -451,8 +432,6 @@ class FOV(object):
                             lp_index=(lp_index-1)%len_linepairs
                         else:
                             lp1.mergeLocus(l, line1)
-                            lp1.left_bound^=left_bound
-                            lp1.right_bound^=right_bound
                             linepairs[lp_index][1]|=line1
                     processed=True
                     break #if cover1>=0
