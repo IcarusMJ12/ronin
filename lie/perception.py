@@ -6,6 +6,9 @@ import globals
 from asp_spa import FOV
 from reality import Grid
 from objects import Actor
+from math import pi, sin
+
+PI_2 = pi*2
 
 class PTile(object):
     def __init__(self, tile):
@@ -61,14 +64,18 @@ class PGrid(Grid):
         tile=self[loc[0],loc[1]].tile
         me=(loc[0],loc[1],tile.blocksLOS())
         world=[(i,j,self[i,j].tile.blocksLOS()) for i in xrange(self.width) for j in xrange(self.height)]
-        ret=self.fov.calculateHexFOV(me,world)
+        fov=self.actor.getFOV()
+        if fov==PI_2:
+            ret=self.fov.calculateHexFOV(me,world)
+        else:
+            ret=self.fov.calculateHexFOV(me, world, fov, self.actor.facing)
         for r in ret:
             self[r[0][0],r[0][1]].d2=r[2]
             if r[1]>1:
                 logging.error(str(me))
                 logging.error(str(r))
                 raise AssertionError("cover > 1")
-            self[r[0][0],r[0][1]].cover=r[1]
+            self[r[0][0],r[0][1]].cover=sin(r[1]*pi/2)
         visible_actors=set([tile.top() for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor)])
         for tile in self.tiles:
             if tile.cover==1 and tile.memory in visible_actors:

@@ -3,9 +3,11 @@
 # Licensed under the Open Software License version 3.0.
 
 from numpy import array as ar
-from math import sqrt
+from numpy import matrix
+from math import sqrt, pi, sin, cos
 import logging
 from exceptions import AssertionError
+import bisect
 
 SQRT3_4=sqrt(3.0/4)
 is_debug=False
@@ -33,6 +35,41 @@ def _clockwiseCompare(p1, p2):
         return 0
     return 1
 
+def getClockwiseEquivalenceClass(coord):
+    """Returns a tuple representing the locus's angle from the origin, as a sort of poor man's polar coordinates."""
+    (x,y)=coord
+    sign= x>=0
+    try:
+        slope=y/x
+    except ZeroDivisionError:
+        slope=float('inf' if y>0 else '-inf')
+    #return (sign, -slope if sign else slope)
+    return (sign, -slope)
+
+def rayPairFromFF(facing, fov):
+    fov=2*pi-fov
+    reflex=fov>=pi
+    facing=Locus.T.dot((facing[0],facing[1],1.0))
+    logging.debug('facing:'+str(facing)+' reflex: '+str(reflex))
+    facing=-facing[0:2]
+    #left, right = [ar((-facing[1]/2.0,facing[0]/2.0)), facing], [ar((facing[1]/2.0,-facing[0]/2.0)), facing]
+    left, right = [ar((0,0)), facing], [ar((0,0)), facing]
+    # rotation matrix = [[ cos -sin ] [ sin cos ]] , rotates COUNTERCLOCKWISE
+    ltheta, rtheta = fov/2.0, -fov/2.0
+    cos_theta=cos(rtheta)
+    sin_ltheta=sin(ltheta)
+    sin_rtheta=-sin_ltheta
+    rotate_left=ar(((cos_theta, sin_rtheta),(sin_ltheta, cos_theta)))
+    rotate_right=ar(((cos_theta, sin_ltheta),(sin_rtheta, cos_theta)))
+    #left, right = (rotate_left*matrix(left[0]).transpose(), rotate_left*matrix(left[1]).transpose()),(rotate_right*matrix(right[0]).transpose(), rotate_right*matrix(right[1]).transpose())
+    left, right = (left[0], rotate_left*matrix(left[1]).transpose()),(right[0], rotate_right*matrix(right[1]).transpose())
+    #left, right = (ar(left[0].transpose())[0], ar(left[1].transpose())[0]), (ar(right[0].transpose())[0],ar(right[1].transpose())[0])
+    left, right = (left[0], ar(left[1].transpose())[0]), (right[0],ar(right[1].transpose())[0])
+    logging.debug("left:"+str(left)+" right:"+str(right))
+    rp=RayPair(None, None, reflex)
+    (rp._left, rp._right)=(left, right)
+    return rp
+
 class RayPair(object):
     """A vector pair is defined by two pairs of points and whether these lines form a reflex angle."""
     id=1
@@ -43,7 +80,8 @@ class RayPair(object):
         self.left=left  #left ray, as a (point, unit vector)
         self.right=right #right ray, as a (point, unit vector)
         self.is_reflex=reflex #when considered from the intersection, whether the vector pair makes a reflex angle (>pi)
-        self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
+        #self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
+        self.left_bound, self.right_bound = False, False
         self.culprits=[] #debug info
         self.id=RayPair.id
         RayPair.id+=1
@@ -76,9 +114,11 @@ class RayPair(object):
 
     def __repr__(self):
         r="RayPair<"+str(self.id)+" l:"+str(self.left[0])+","+str(self.left[1])+" r:"+str(self.right[0])+","+str(self.right[1])
-        if self.is_world:
-            r+=" (W)"
-        elif self.is_reflex:
+        if self.left_bound:
+            r+=" (L)"
+        if self.right_bound:
+            r+=" (R)"
+        if self.is_reflex:
             r+=" (ref)"
         r+=">"
         for c in self.culprits:
@@ -95,7 +135,7 @@ class RayPair(object):
         if is_debug:
             logging.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
         if line==3:
-            self.is_world=True
+            self.left_bound, self.right_bound = True, True
             return self
         if line==1:
             if RayPair._cross(self.right[0],self.left[0],locus.n) <= RayPair.EPSILON:
@@ -120,18 +160,19 @@ class RayPair(object):
         reflex=(lp1.is_reflex or lp2.is_reflex)
         assert lp1_line!=lp2_line, str(lp1_line)+'=='+str(lp2_line)
         if lp1_line==1:
-            right=lp1.right
-            left=lp2.left
+            left,right = lp2.left,lp1.right
+            left_bound, right_bound = lp2.left_bound, lp1.right_bound
             if not reflex and RayPair._cross(lp1.right[0],lp1.left[0],lp2.left[0]) <= RayPair.EPSILON:
                 reflex=True
         else:
-            left=lp1.left
-            right=lp2.right
+            left,right = lp1.left,lp2.right
+            left_bound, right_bound = lp1.left_bound, lp2.right_bound
             if not reflex and RayPair._cross(lp2.right[0],lp2.left[0],lp1.left[0]) <= RayPair.EPSILON:
                 reflex=True
         lp=RayPair(None,None,reflex)
         lp._left=left
         lp._right=right
+        lp.left_bound, lp.right_bound = left_bound, right_bound
         lp.culprits=lp1.culprits
         lp.culprits.extend(lp2.culprits)
         return lp
@@ -139,7 +180,7 @@ class RayPair(object):
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
         RayPair.count_processed+=1
-        if(self.is_world):
+        if(self.right_bound and self.left_bound):
             if is_debug:
                 logging.debug("We are world!")
             return (1.0,0)
@@ -154,7 +195,9 @@ class RayPair(object):
             logging.debug('\t\tright:'+str(right))
         if right > -RayPair.EPSILON and right < RayPair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
             right=0 #tangent
-        if right > 1.0-RayPair.EPSILON:
+        if self.right_bound and right>0:
+            right=1
+        elif right > 1.0-RayPair.EPSILON:
             right=1 #fully contained
         if not self.is_reflex:
             if right < 0:
@@ -164,7 +207,9 @@ class RayPair(object):
             logging.debug('\t\tleft:'+str(left))
         if left > -RayPair.EPSILON and left < RayPair.EPSILON:
             left=0
-        if left > 1.0-RayPair.EPSILON:
+        if self.left_bound and left>0:
+            left=1
+        elif left > 1.0-RayPair.EPSILON:
             left=1
         if not self.is_reflex:
             if left < 0:
@@ -177,13 +222,13 @@ class RayPair(object):
         #i guess we're a reflex angle, so things get harder...
         if left < 0 and right < 0:
             return (-1,2)
-        if(self.left[0].dot(self.right[0])>0):  #angle between normals between -90 and 90
+        if(self.left[1].dot(self.right[1])<0):  #angle between vectors between 90 and 270, i.e. possibly 180
             if left == 1 and right == 1:
                 return (1.0, 0)
             if left - RayPair.EPSILON > right:
                 return (left, 1)
             if left + RayPair.EPSILON > right: #typically l and r are the same line...
-                if RayPair._cross((0,0),self.left[0],l.coord)<0:
+                if RayPair._cross((0,0),(-self.left[1][1],self.left[1][0]),l.coord)<0:
                     return (left, 1)
             return (right, 2)
         if left == 1 or right == 1:
@@ -206,7 +251,7 @@ class RayPair(object):
 
 class Locus(object):
     """Generally speaking, a circle positioned using Cartesian coordinates that may block line of sight."""
-    T=ar([[-SQRT3_4, SQRT3_4, 0],[-0.5, -0.5, 0], [0, 0, 1]]) #hex -> cartesian
+    T=ar([[-SQRT3_4, SQRT3_4, 0.0],[-0.5, -0.5, 0.0], [0.0, 0.0, 1.0]]) #hex -> cartesian
 
     def __init__(self, coord_blocks_triple):
         (x, y, self.blocksLOS)=coord_blocks_triple
@@ -217,7 +262,8 @@ class Locus(object):
         n=ar((-coord[1]/factor, coord[0]/factor)) #rotate -pi/2 and scale producing the 'left' normal
         self.coord=coord[0:2]
         self.n=n
-        self.cover=0.0
+        self.cover_left=0.0
+        self.cover_right=0.0
 
     def __cmp__(self, other):
         """Comparison by distance from origin and clockwise angle around the origin from the y axis."""
@@ -233,11 +279,15 @@ class Locus(object):
         return dx*dx+dy*dy-dx*dy
     
     def __repr__(self):
-        return "Locus<x:"+str(self.id[0])+" y:"+str(self.id[1])+" ["+str(self.coord)+"] d^2:"+str(self.d_2)+" ("+str(self.blocksLOS)+")>"
+        return "Locus<x:"+str(self.id[0])+" y:"+str(self.id[1])+" "+str(self.coord)+" d^2:"+str(self.d_2)+" "+str(self.cover_left)+"/"+str(self.cover_right)+" ("+str(self.blocksLOS)+")>"
     
     def toRayPair(self):
         """Returns the relevant RayPair for this locus, used if this locus blocks line of sight."""
         lp=RayPair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
+        if self.cover_left:
+            lp.left_bound=True
+        if self.cover_right:
+            lp.right_bound=True
         lp.culprits.append(self)
         if is_debug:
             logging.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
@@ -245,43 +295,68 @@ class Locus(object):
 
 class FOV(object):
     """Field of View calculator."""
-    def calculateHexFOV(self, me, world, linepairs=None):
+    def _processOrigin(self, loci, processed_loci):
+        while len(loci) and loci[-1].d_2==0:
+            l=loci.pop()
+            l.cover_left=0.0 #an object cannot provide cover for itself
+            l.cover_right=0.0
+            processed_loci.append(l)
+    
+    def _getEquivalenceClasses(self, loci, offset):
+        equivalence_classes={}
+        for locus in loci:
+            key=getClockwiseEquivalenceClass(offset+locus.coord)
+            try:
+                equivalence_classes[key].append(locus)
+            except KeyError:
+                equivalence_classes[key]=[locus]
+        return equivalence_classes
+
+    def _processInitialFOV(self, loci, facing, fov):
+        raypair=rayPairFromFF(facing, fov)
+        for l in loci:
+            if l.id!=(0,0):
+                cover_left, cover_right = 0, 0
+                (cover, line)=raypair.calculateCover(l)
+                if line==3:
+                    cover_left, cover_right = cover
+                elif line==0:
+                    cover_left, cover_right = cover, cover
+                else:
+                    cover=max(0.0, cover)
+                    if line==1:
+                        cover_left = cover
+                    else:
+                        cover_right = cover
+                l.cover_left, l.cover_right = max(l.cover_left, 1.0 if cover_left>0.866 else cover_left), max(l.cover_right, 1.0 if cover_right>0.866 else cover_right)
+        
+    def calculateHexFOV(self, me, world, fov=None, facing=None):
         """Calculate Field of View from triples of the form (x,y,blocksLOS) where x and y are in hex coordinates."""
         result=None
-        for result in self.hexFOVGenerator(me, world, linepairs, yield_each_iteration=False):
+        for result in self.hexFOVGenerator(me, world, fov, facing, yield_each_iteration=False):
             pass
         return result[0]
 
-    def hexFOVGenerator(self, me, world, linepairs=None, yield_each_iteration=True):
+    def hexFOVGenerator(self, me, world, fov=None, facing=None, yield_each_iteration=True):
         """Auxiliary function for calculateHexFOV."""
-        #if me==(42,23, False):
-        #   globals()['is_debug']=True
-        #else:
-        #   globals()['is_debug']=False
-        RayPair.id=1
-        if linepairs is None:
-            linepairs=[]
         loci=[Locus((i[0]-me[0],i[1]-me[1],i[2])) for i in world]
         loci.sort(reverse=True)
-        if len(linepairs):
+        ret=[]
+        self._processOrigin(loci, ret)
+        RayPair.id=1
+        linepairs=[]
+        len_linepairs=len(linepairs)
+        if len_linepairs:
             linepairs.sort()
             linepairs=[[l,0] for l in linepairs] #adding the 'freshness' metric
             #freshness affects whether the line(s) actually provide cover or are only considered as neighbors to blocking loci
             #freshness can be 1 (left is fresh), 2 (right is fresh), 3 (both), or 0 (neither), hence initially all lines are 'stale'
-        d_2=0
-        ret=[]
-        #process origin, i.e. myself in the world
-        while len(loci) and loci[-1].d_2==0:
-            l=loci.pop()
-            l.cover=0.0 #an object cannot provide cover for itself
-            ret.append(l)
         #process everything else
         d_2=1
-        len_linepairs=len(linepairs)
         lp_index=0 #start with the 'leftmost' linepair again
         while True:
             assert sum([lp[0].is_reflex for lp in linepairs])<2, 'sum>=2'
-            wc=sum([lp[0].is_world for lp in linepairs])
+            wc=sum([lp[0].left_bound and lp[0].right_bound for lp in linepairs])
             if wc:
                 if len_linepairs!=1:
                     logging.error(str(wc)+' '+str(len_linepairs)+' '+str(len(linepairs)))
@@ -315,13 +390,17 @@ class FOV(object):
                     logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
-                    l.cover=max(cover1,0.0)*(not fresh1&1)+max(cover2,0.0)*(not fresh1&2)
+                    l.cover_right=max(max(cover1,0.0)*(not fresh1&1),l.cover_right)
+                    l.cover_left=max(max(cover2,0.0)*(not fresh1&2),l.cover_left)
                     if l.blocksLOS and lp1.is_reflex:
-                        lp1.is_world=True
+                        lp1.right_bound, lp1.left_bound = True, True
                     processed=True
                     break
                 if cover1 == 1: #guaranteed to be stale line by nature of the algorithm (i.e. adjacencies at same distance cannot completely occlude each other)
-                    l.cover=cover1
+                    if line1==2:
+                        l.cover_left=max(cover1,l.cover_left)
+                    else:
+                        l.cover_right=max(cover1,l.cover_right)
                     processed=True
                     break
                 (lp2,fresh2,cover2,line2)=(None,0,-1,0)
@@ -348,7 +427,17 @@ class FOV(object):
                             logging.error('lp2: '+str(lp2))
                             raise AssertionError("line1 == line2")
                         assert line2!=3, 'line2==3'
-                    l.cover=max(cover1,0.0)*(not fresh1&line1)+(max(cover2,0.0)*(not fresh2&line2))
+                    left_bound, right_bound = False, False
+                    if l.cover_left:
+                        left_bound=True
+                    if l.cover_right:
+                        right_bound=True
+                    if line1==2:
+                        l.cover_right=max(max(cover1,0.0)*(not fresh1&line1),l.cover_right)
+                        l.cover_left=max(max(cover2,0.0)*(not fresh2&line2),l.cover_left)
+                    else:
+                        l.cover_left=max(max(cover1,0.0)*(not fresh1&line1),l.cover_left)
+                        l.cover_right=max(max(cover2,0.0)*(not fresh2&line2),l.cover_right)
                     if l.blocksLOS:
                         if cover2>=0:
                             lp=RayPair.mergePairsByLocus((lp1, line1), (lp2, line2))
@@ -362,6 +451,8 @@ class FOV(object):
                             lp_index=(lp_index-1)%len_linepairs
                         else:
                             lp1.mergeLocus(l, line1)
+                            lp1.left_bound^=left_bound
+                            lp1.right_bound^=right_bound
                             linepairs[lp_index][1]|=line1
                     processed=True
                     break #if cover1>=0
@@ -373,7 +464,7 @@ class FOV(object):
                 elif (direction==-1 and line1 !=1) or (direction==1 and line1 !=2):
                     break
                 lp_index=(lp_index+direction)%len_linepairs
-            if not processed and l.cover==0 and l.blocksLOS:
+            if not processed and l.blocksLOS:
                 linepairs.append([l.toRayPair(),3])
                 len_linepairs+=1
                 linepairs.sort()
@@ -382,12 +473,14 @@ class FOV(object):
                 (x,y)=(me[0],me[1])
                 try:
                     next_locus = loci[-1]
-                    yield ([((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret],next_locus.id)
+                    yield ([((i.id[0]+x, i.id[1]+y), min(i.cover_right+i.cover_left,1.0), i.d_2) for i in ret],next_locus.id)
                 except IndexError:
                     pass
         (x,y)=(me[0],me[1])
         logging.debug("RayPairs processed: "+str(RayPair.count_processed))
-        yield ([((i.id[0]+x, i.id[1]+y), i.cover, i.d_2) for i in ret],None)
+        if fov is not None and facing is not None:
+            self._processInitialFOV(ret, facing, fov)
+        yield ([((i.id[0]+x, i.id[1]+y), min(i.cover_right+i.cover_left,1.0), i.d_2) for i in ret],None)
 
 if __name__ == '__main__':
     import unittest

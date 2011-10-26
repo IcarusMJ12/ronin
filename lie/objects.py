@@ -4,6 +4,7 @@
 import abc
 import copy
 import logging
+import math
 from exceptions import NotImplementedError
 
 __all__=['Actor', 'Floor', 'Terrain', 'Wall']
@@ -62,6 +63,7 @@ class Actor(BaseObject):
     def __init__(self):
         super(Actor, self).__init__()
         self.perception=None
+        self.facing=(0,0)
 
     def moveToTile(self, tile):
         if(tile.isPassableBy(self)):
@@ -109,7 +111,14 @@ class Actor(BaseObject):
         src_tile=self.parent
         assert(src_tile)
         loc=(src_tile.loc[0]+x,src_tile.loc[1]+y)
+        self.facing=(x,y)
         return self.moveToLocation(loc)
 
     def idle(self):
+        self.facing=(0,0)
         return False
+
+    def getFOV(self):
+        if self.facing==(0,0):
+            return 2*math.pi
+        return math.pi/1.5

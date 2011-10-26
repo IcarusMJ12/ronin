@@ -19,7 +19,7 @@ def lookMode():
             worldview.center(worldview[loc[0]].rect)
             previous_loc[0]=loc[0]
         screen_manager.current.view.draw()
-        message_buffer.addMessage('\n\n'.join([contents[2] for contents in perception.examineTile(loc[0])]))
+        message_buffer.addMessage('\n\n'.join([contents[2] for contents in perception.examineTile(loc[0])])+'\n\n['+str(perception[loc[0]].cover)+']')
     
     def quitLook():
         worldview[loc[0]].image=backup[0]
