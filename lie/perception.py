@@ -8,6 +8,8 @@ from reality import Grid
 from objects import Actor
 from math import pi, sin
 
+logger=logging.getLogger(__name__)
+
 PI_2 = pi*2
 
 class PTile(object):
@@ -72,8 +74,8 @@ class PGrid(Grid):
         for r in ret:
             self[r[0][0],r[0][1]].d2=r[2]
             if r[1]>1:
-                logging.error(str(me))
-                logging.error(str(r))
+                logger.error(str(me))
+                logger.error(str(r))
                 raise AssertionError("cover > 1")
             self[r[0][0],r[0][1]].cover=sin(r[1]*pi/2)
         visible_actors=set([tile.top() for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor)])

@@ -5,12 +5,14 @@ import pygame
 from conf import Conf
 import globals
 import monofont
+import logging
 
 def init(f):
     Conf.load(f)
     conf=Conf.getConf()
     monofont.init()
     pygame.display.init()
+    #processing 'lie' section
     globals.font_size=conf.getint('lie','font_size')
     globals.font=monofont.MonoFont(conf.get('lie','font'),globals.font_size)
     globals.scale_horizontally=conf.getint('lie','scale_horizontally')
@@ -35,3 +37,6 @@ def init(f):
     globals.screen.fill((0,0,0))
     globals.background = globals.screen.copy()
     globals.savefile_location = conf.get('lie','savefile_location')
+    #processing 'logging' section
+    for name, level in conf.items('logging'):
+        logging.getLogger(name).setLevel(logging.getLevelName(level))

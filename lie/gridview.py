@@ -9,6 +9,8 @@ import pygame
 from pygame.rect import Rect
 from reality import Grid
 
+logger=logging.getLogger(__name__)
+
 def computeTileColor(ptile):
     gray=globals.darkest_gray
     g=1.0
@@ -62,19 +64,19 @@ class GridView(pygame.sprite.RenderUpdates):
 
     def __init__(self,viewable_area,center=None):
         super(GridView, self).__init__()
-        logging.info(str(viewable_area))
+        logger.debug(str(viewable_area))
         self.viewport=globals.screen.subsurface(viewable_area)
         self._sprites=[]
         (self.x,self.y)=(self.viewport.get_width()/2,self.viewport.get_height()/2)
-        logging.info(str(self.x)+' '+str(self.y))
+        logger.debug(str(self.x)+' '+str(self.y))
         if center:
             self.center(center)
     
     def center(self,center):
-        logging.info(str(center))
+        logger.debug(str(center))
         (x,y)=(center.x+center.w/2,center.y+center.h/2)
         (dx,dy)=(self.x-x,self.y-y)
-        logging.info(str(dx)+' '+str(dy))
+        logger.debug(str(dx)+' '+str(dy))
         self.move(dx,dy)
 
     def move(self,x,y):

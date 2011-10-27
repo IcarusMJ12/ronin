@@ -7,12 +7,12 @@ from numpy import matrix
 from math import sqrt, pi, sin, cos
 import logging
 from exceptions import AssertionError
-import bisect
 
 SQRT3_4=sqrt(3.0/4)
-is_debug=False
 
 __all__=['RayPair', 'Locus','FOV']
+
+logger=logging.getLogger(__name__)
 
 def _clockwiseCompare(p1, p2):
     """Compares items by clockwise direction starting at the positive y axis.
@@ -50,7 +50,7 @@ def rayPairFromFF(facing, fov):
     fov=2*pi-fov
     reflex=fov>=pi
     facing=Locus.T.dot((facing[0],facing[1],1.0))
-    logging.debug('facing:'+str(facing)+' reflex: '+str(reflex))
+    logger.debug('facing:'+str(facing)+' reflex: '+str(reflex))
     facing=-facing[0:2]
     #left, right = [ar((-facing[1]/2.0,facing[0]/2.0)), facing], [ar((facing[1]/2.0,-facing[0]/2.0)), facing]
     left, right = [ar((0,0)), facing], [ar((0,0)), facing]
@@ -65,7 +65,7 @@ def rayPairFromFF(facing, fov):
     left, right = (left[0], rotate_left*matrix(left[1]).transpose()),(right[0], rotate_right*matrix(right[1]).transpose())
     #left, right = (ar(left[0].transpose())[0], ar(left[1].transpose())[0]), (ar(right[0].transpose())[0],ar(right[1].transpose())[0])
     left, right = (left[0], ar(left[1].transpose())[0]), (right[0],ar(right[1].transpose())[0])
-    logging.debug("left:"+str(left)+" right:"+str(right))
+    logger.debug("left:"+str(left)+" right:"+str(right))
     rp=RayPair(None, None, reflex)
     (rp._left, rp._right)=(left, right)
     return rp
@@ -81,11 +81,12 @@ class RayPair(object):
         self.right=right #right ray, as a (point, unit vector)
         self.is_reflex=reflex #when considered from the intersection, whether the vector pair makes a reflex angle (>pi)
         self.is_world=False #whether the linepair angle is 2*pi, i.e. the world
-        self.culprits=[] #debug info
+        if logger.level<=logging.INFO:
+            self.culprits=[] #debug info
         self.id=RayPair.id
         RayPair.id+=1
-        if is_debug:
-            logging.debug("Created linepair "+str(self.id))
+        if logger.level==logging.DEBUG:
+            logger.debug("Created linepair "+str(self.id))
     
     def _vectorize(self, segment):
         if segment is None:
@@ -118,8 +119,9 @@ class RayPair(object):
         if self.is_reflex:
             r+=" (ref)"
         r+=">"
-        for c in self.culprits:
-            r+="\n\t"+str(c)
+        if logger.level<=logging.INFO:
+            for c in self.culprits:
+                r+="\n\t"+str(c)
         return r
 
     def __cmp__(self, other):
@@ -128,9 +130,10 @@ class RayPair(object):
     
     def mergeLocus(self, locus, line):
         """Updates the RayPair to contain the LOS-blocking locus provided."""
-        self.culprits.append(locus)
-        if is_debug:
-            logging.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
+        if logger.level<=logging.INFO:
+            self.culprits.append(locus)
+        if logger.level==logging.DEBUG:
+            logger.debug("Merging locus "+str(locus)+' '+str(line)+" into linepair "+str(self.id))
         if line==3:
             self.is_world = True
             return self
@@ -149,8 +152,8 @@ class RayPair(object):
         """Merges two RayPairs by a LOS-blocking locus that they share."""
         (lp1,lp1_line)=lp1_tuplet
         (lp2,lp2_line)=lp2_tuplet
-        if is_debug:
-            logging.debug("Merging linepairs "+str(lp1.id)+' '+str(lp1_line)+" and "+str(lp2.id)+' '+str(lp2_line))
+        if logger.level==logging.DEBUG:
+            logger.debug("Merging linepairs "+str(lp1.id)+' '+str(lp1_line)+" and "+str(lp2.id)+' '+str(lp2_line))
         assert lp1!=lp2,str(lp1)+'=='+str(lp2)
         right=None
         left=None
@@ -167,26 +170,27 @@ class RayPair(object):
         lp=RayPair(None,None,reflex)
         lp._left=left
         lp._right=right
-        lp.culprits=lp1.culprits
-        lp.culprits.extend(lp2.culprits)
+        if logger.level<=logging.INFO:
+            lp.culprits=lp1.culprits
+            lp.culprits.extend(lp2.culprits)
         return lp
 
     def calculateCover(self, l):
         """Returns a tuple in the form (cover_amount: 0.0-1.0, side: 1 if left line, 2 if right line, 3 if both, 0 if doesn't matter)"""
         RayPair.count_processed+=1
         if self.is_world:
-            if is_debug:
-                logging.debug("We are world!")
+            if logger.level==logging.DEBUG:
+                logger.debug("We are world!")
             return (1.0,0)
         if not self.is_reflex:
             n=-(self.right[0]+self.left[0])/2
             if RayPair._cross(self.left[0],self.right[0], l.coord+n)<0:
-                if is_debug:
-                    logging.debug("We are south of the line.")
+                if logger.level==logging.DEBUG:
+                    logger.debug("We are south of the line.")
                 return (-1,2) #assuming next linepair is right
         right=RayPair._crossVectors(self.right[1],l.coord-self.right[0]*2) #negative if locus entirely to the right
-        if is_debug:
-            logging.debug('\t\tright:'+str(right))
+        if logger.level==logging.DEBUG:
+            logger.debug('\t\tright:'+str(right))
         if right > -RayPair.EPSILON and right < RayPair.EPSILON: #account for potential floating point error to arrive at a "good enough" answer
             right=0 #tangent
         elif right > 1.0-RayPair.EPSILON:
@@ -195,8 +199,8 @@ class RayPair(object):
             if right < 0:
                 return (-1,2)
         left=-RayPair._crossVectors(self.left[1],l.coord-self.left[0]*2) #negative if locus is entirely to the left
-        if is_debug:
-            logging.debug('\t\tleft:'+str(left))
+        if logger.level==logging.DEBUG:
+            logger.debug('\t\tleft:'+str(left))
         if left > -RayPair.EPSILON and left < RayPair.EPSILON:
             left=0
         elif left > 1.0-RayPair.EPSILON:
@@ -274,9 +278,10 @@ class Locus(object):
     def toRayPair(self):
         """Returns the relevant RayPair for this locus, used if this locus blocks line of sight."""
         lp=RayPair((self.n,self.coord+self.n),(-self.n,self.coord-self.n),False)
-        lp.culprits.append(self)
-        if is_debug:
-            logging.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
+        if logger.level<=logging.INFO:
+            lp.culprits.append(self)
+        if logger.level==logging.DEBUG:
+            logger.debug("Created linepair "+str(lp.id)+" from locus "+str(self))
         return lp
 
 class FOV(object):
@@ -345,21 +350,21 @@ class FOV(object):
             wc=sum([lp[0].is_world for lp in linepairs])
             if wc:
                 if len_linepairs!=1:
-                    logging.error(str(wc)+' '+str(len_linepairs)+' '+str(len(linepairs)))
+                    logger.error(str(wc)+' '+str(len_linepairs)+' '+str(len(linepairs)))
                     for lp in linepairs:
-                        logging.error(str(lp[0]))
+                        logger.error(str(lp[0]))
                     raise AssertionError("More than one linepair when world linepair exists.")
             try:
                 l=loci.pop()
             except IndexError:
                 break
-            if is_debug:
-                logging.debug(str(l)+' '+str(len_linepairs))
-                logging.debug('------------------')
-                logging.debug('current linepairs:')
+            if logger.level==logging.DEBUG:
+                logger.debug(str(l)+' '+str(len_linepairs))
+                logger.debug('------------------')
+                logger.debug('current linepairs:')
                 for linepair in linepairs:
-                    logging.debug(str(linepair))
-                logging.debug('------------------')
+                    logger.debug(str(linepair))
+                logger.debug('------------------')
             if l.d_2 > d_2:
                 d_2=l.d_2
                 lp_index=0 #restarting
@@ -371,9 +376,9 @@ class FOV(object):
             for ignored in xrange(len_linepairs):
                 (lp1, fresh1)=linepairs[lp_index]
                 (cover1, line1) = lp1.calculateCover(l)
-                if is_debug:
-                    logging.debug('lp1 ['+str(lp_index)+']: '+str(lp1))
-                    logging.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
+                if logger.level==logging.DEBUG:
+                    logger.debug('lp1 ['+str(lp_index)+']: '+str(lp1))
+                    logger.debug('fresh1: '+str(fresh1)+' cover1: '+str(cover1)+' line1: '+str(line1))
                 if line1==3: #either reflex angle intersecting same locus from two different sides, or result of circle being > unit
                     (cover1,cover2)=(cover1[0],cover1[1])
                     l.cover_right=max(cover1,0.0)*(not fresh1&1)
@@ -393,24 +398,24 @@ class FOV(object):
                 if cover1>=0: #jackpot?
                     if len_linepairs>1:
                         if line1==1 and direction!=1:
-                            if is_debug:
+                            if logger.level==logging.DEBUG:
                                 debug_index=(lp_index-1)%len_linepairs
                             (lp2, fresh2)=linepairs[(lp_index-1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
                         elif direction!=-1: #line1==2
-                            if is_debug:
+                            if logger.level==logging.DEBUG:
                                 debug_index=(lp_index-1)%len_linepairs
                             (lp2, fresh2)=linepairs[(lp_index+1)%len_linepairs]
                             (cover2, line2) = lp2.calculateCover(l)
-                        if is_debug:
-                            logging.debug('lp2: ['+str(debug_index)+']'+str(lp2))
-                            logging.debug('fresh2: '+str(fresh2)+' cover2: '+str(cover2)+' line2: '+str(line2))
+                        if logger.level==logging.DEBUG:
+                            logger.debug('lp2: ['+str(debug_index)+']'+str(lp2))
+                            logger.debug('fresh2: '+str(fresh2)+' cover2: '+str(cover2)+' line2: '+str(line2))
                         if cover2>=0 and line2==line1:
-                            logging.error(str(me))
-                            logging.error('locus: '+str(l))
-                            logging.error('line1, len(linepairs), len_linepairs:'+str(line1)+' '+str(len(linepairs))+' '+str(len_linepairs))
-                            logging.error('lp1: '+str(lp1))
-                            logging.error('lp2: '+str(lp2))
+                            logger.error(str(me))
+                            logger.error('locus: '+str(l))
+                            logger.error('line1, len(linepairs), len_linepairs:'+str(line1)+' '+str(len(linepairs))+' '+str(len_linepairs))
+                            logger.error('lp1: '+str(lp1))
+                            logger.error('lp2: '+str(lp2))
                             raise AssertionError("line1 == line2")
                         assert line2!=3, 'line2==3'
                     if line1==2:
@@ -422,7 +427,8 @@ class FOV(object):
                     if l.blocksLOS:
                         if cover2>=0:
                             lp=RayPair.mergePairsByLocus((lp1, line1), (lp2, line2))
-                            lp.culprits.append(l)
+                            if logger.level<=logging.INFO:
+                                lp.culprits.append(l)
                             linepairs[lp_index]=[lp,fresh1|fresh2]
                             if line1==1:
                                 linepairs.pop((lp_index-1)%len_linepairs)
@@ -456,7 +462,7 @@ class FOV(object):
                 except IndexError:
                     pass
         (x,y)=(me[0],me[1])
-        logging.debug("RayPairs processed: "+str(RayPair.count_processed))
+        logger.debug("RayPairs processed: "+str(RayPair.count_processed))
         if fov is not None and facing is not None:
             self._processInitialFOV(ret, facing, fov)
         yield ([((i.id[0]+x, i.id[1]+y), min(i.cover_right+i.cover_left,1.0), i.d_2) for i in ret],None)
@@ -766,7 +772,6 @@ if __name__ == '__main__':
         usage()
         exit(1)
     if unit:
-        logging.basicConfig(level=logging.INFO)
         suite = None
         if len(args)>0:
             suite = unittest.TestSuite(map(FOVTest,args))
@@ -778,7 +783,7 @@ if __name__ == '__main__':
         from objects import Floor, Wall
         from random import Random
 
-        logging.basicConfig(level=logging.INFO)
+        logger.setLevel(logging.INFO)
 
         fov=FOV()
         errors=[]
@@ -828,7 +833,7 @@ if __name__ == '__main__':
         from __init__ import init
 
         is_debug=True
-        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
         if seeds[0]!=seeds[1]:
             usage()
@@ -855,8 +860,8 @@ if __name__ == '__main__':
             for r in result[0]:
                 perception[r[0][0],r[0][1]].d2=r[2]
                 if r[1]>1:
-                    logging.error(str(me))
-                    logging.error(str(r))
+                    logger.error(str(me))
+                    logger.error(str(r))
                     raise AssertionError("cover > 1")
                 perception[r[0][0],r[0][1]].cover=r[1]
             try:

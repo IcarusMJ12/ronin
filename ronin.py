@@ -23,6 +23,8 @@ from lie.look import lookMode
 #import psyco
 #psyco.full()
 
+logger=logging.getLogger('ronin')
+
 SAVE_FILE='save'
 
 def reallyQuit():
@@ -79,9 +81,9 @@ def player_pre():
 def player_phase():
     ctx=Context.getContext()
     event=pygame.event.wait()
-    logging.debug(event)
+    logger.debug(event)
     ret=ctx.screen_manager.current.handlers.handle(event)
-    logging.info(ret)
+    logger.debug(ret)
     if ret is not None:
         ctx.message_buffer.flush()
         ctx.worldview.draw()
@@ -106,8 +108,8 @@ def enemies_phase():
 #initializing everything
 def init():
     #setup logger
-    logging.basicConfig(level=logging.DEBUG)
-    #logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     ctx=Context.getContext()
     #get random
@@ -151,7 +153,7 @@ if __name__ == '__main__':
         ctx.quit=reallyQuit
         #populate world
         now=time.time()
-        logging.info("Level generation seed: "+str(now))
+        logger.info("Level generation seed: "+str(now))
         generator=CellularAutomata(Random(now), Floor, Wall)
         while True:
             ctx.world=generator.generateLevel(51,25)
@@ -161,7 +163,7 @@ if __name__ == '__main__':
                     for tile in pocket:
                         tile.terrain=Wall()
                 break
-            logging.info("trying again...")
+            logger.info("trying again...")
         done_tiles=[]
         tiles=[ctx.world[26,16]]
         while tiles[0].blocksLOS():
