@@ -35,17 +35,6 @@ def _clockwiseCompare(p1, p2):
         return 0
     return 1
 
-def getClockwiseEquivalenceClass(coord):
-    """Returns a tuple representing the locus's angle from the origin, as a sort of poor man's polar coordinates."""
-    (x,y)=coord
-    sign= x>=0
-    try:
-        slope=y/x
-    except ZeroDivisionError:
-        slope=float('inf' if y>0 else '-inf')
-    #return (sign, -slope if sign else slope)
-    return (sign, -slope)
-
 def rayPairFromFF(facing, fov):
     fov=2*pi-fov
     reflex=fov>=pi
@@ -58,7 +47,7 @@ def rayPairFromFF(facing, fov):
     ltheta, rtheta = fov/2.0, -fov/2.0
     cos_theta=cos(rtheta)
     sin_ltheta=sin(ltheta)
-    sin_rtheta=-sin_ltheta
+    sin_rtheta=-sin_ltheta #sin is symmetrical
     rotate_left=ar(((cos_theta, sin_rtheta),(sin_ltheta, cos_theta)))
     rotate_right=ar(((cos_theta, sin_ltheta),(sin_rtheta, cos_theta)))
     #left, right = (rotate_left*matrix(left[0]).transpose(), rotate_left*matrix(left[1]).transpose()),(rotate_right*matrix(right[0]).transpose(), rotate_right*matrix(right[1]).transpose())
@@ -268,8 +257,8 @@ class Locus(object):
 
     def distance_2(self, other):
         """Computed in hex coordinates for quickness and accuracy due to integer arithmetic."""
-        dx=(other.id.x-self.id.x)
-        dy=(other.id.y-self.id.y)
+        dx=(other.id[0]-self.id[0])
+        dy=(other.id[1]-self.id[1])
         return dx*dx+dy*dy-dx*dy
     
     def __repr__(self):
@@ -293,16 +282,6 @@ class FOV(object):
             l.cover_right=0.0
             processed_loci.append(l)
     
-    def _getEquivalenceClasses(self, loci, offset):
-        equivalence_classes={}
-        for locus in loci:
-            key=getClockwiseEquivalenceClass(offset+locus.coord)
-            try:
-                equivalence_classes[key].append(locus)
-            except KeyError:
-                equivalence_classes[key]=[locus]
-        return equivalence_classes
-
     def _processInitialFOV(self, loci, facing, fov):
         raypair=rayPairFromFF(facing, fov)
         for l in loci:
