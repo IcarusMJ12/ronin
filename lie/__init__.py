@@ -37,6 +37,7 @@ def init(f):
     globals.screen.fill((0,0,0))
     globals.background = globals.screen.copy()
     globals.savefile_location = conf.get('lie','savefile_location')
+    globals.wizard_mode = conf.getboolean('lie','wizard_mode')
     #processing 'logging' section
     for name, level in conf.items('logging'):
         logging.getLogger(name).setLevel(logging.getLevelName(level))

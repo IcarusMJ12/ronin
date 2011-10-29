@@ -35,8 +35,14 @@ class BoundedTextLine(TextLine):
         self._width=rect.w/globals.font.w
     
     def render(self, text, color=(255,255,255), bgcolor=None):
-        super(BoundedTextLine, self).render(text[:self._width], color, bgcolor)
-        return text[self._width:]
+        offset=len(text)
+        if offset>self._width:
+            try:
+                offset=text[:self._width].rindex(' ')
+            except ValueError:
+                offset=self._width
+        super(BoundedTextLine, self).render(text[:offset], color, bgcolor)
+        return text[offset:].lstrip()
 
 class SmartTextLine(BoundedTextLine):
     def __init__(self, rect):
