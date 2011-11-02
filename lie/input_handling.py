@@ -17,6 +17,7 @@ class InputHandlerManager(object):
         self._input_handlers.pop(0)
     
     def handle(self,event):
+        logger.debug(str(event))
         handler=self._input_handlers[0]
         (f,args,kw)=handler.getFunction(event.key, event.mod)
         if f:

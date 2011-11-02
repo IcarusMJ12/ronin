@@ -16,14 +16,16 @@ class BaseObject(object):
     @abc.abstractmethod
     def __init__(self):
         self.blocks_los=False
+        self.long_description=self.__doc__
+        self.short_description=self.__doc__
     
     def getLongDescription(self, visibility=None):
         """Returns docstring by default.  You should probably override this."""
-        return self.__doc__ or ''
+        return self.long_description or ''
 
     def getShortDescription(self, visibility=None):
         """Returns docstring by default.  You should probably override this."""
-        return self.__doc__ or ''
+        return self.short_description or ''
 
 class Terrain(BaseObject):
     """A terrain feature."""
@@ -45,6 +47,7 @@ class Floor(Terrain):
     """A floor that can be walked on."""
     def __init__(self):
         super(Floor, self).__init__(Actor)
+        self.short_description='a floor'
         self.symbol=u'\u00b7'
         self.blocks_los=False
 
@@ -52,6 +55,7 @@ class Wall(Terrain):
     """An impassable wall."""
     def __init__(self):
         super(Wall, self).__init__(None)
+        self.short_description='a wall'
         self.symbol='#'
         self.blocks_los=True
 
@@ -62,6 +66,7 @@ class Actor(BaseObject):
     @abc.abstractmethod
     def __init__(self):
         super(Actor, self).__init__()
+        self.short_description='an actor'
         self.perception=None
         self.facing=(0,0)
 

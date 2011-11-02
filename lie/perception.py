@@ -60,6 +60,8 @@ class PGrid(Grid):
         self.grid=[[PTile(grid[i,j]) for j in xrange(grid.height)] for i in xrange(grid.width)]
         self.fov=FOV()
         self.actor=actor
+        self.target=None
+        self.monsters={}
 
     def calculateFOV(self, radius=None):
         loc=self.actor.parent.loc
@@ -78,10 +80,13 @@ class PGrid(Grid):
                 logger.error(str(r))
                 raise AssertionError("cover > 1")
             self[r[0][0],r[0][1]].cover=sin(r[1]*pi/2)
-        visible_actors=set([tile.top() for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor)])
+        self.monsters=dict([(tile.tile.loc,tile.top()) for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor) and tile.top()!=self.actor])
+        visible_actors=set(self.monsters.values())
         for tile in self.tiles:
             if tile.cover==1 and tile.memory in visible_actors:
                 tile.memory=tile.tile.terrain
+        self.monsters_keys=sorted(self.monsters.keys(), key=lambda x: pow(x[0]-me[0],2)+pow(x[1]-me[1],2)-(x[0]-me[0])*(x[1]-me[1]))
+        logger.debug('me:'+str(self.actor.parent.loc)+' them:'+str(self.monsters_keys))
     
     def examineTile(self, loc):
         objects=None

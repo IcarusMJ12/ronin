@@ -9,79 +9,160 @@ from pygame.locals import *
 from context import Context
 import input_handling
 import globals
+import logging
+import abc
+
+logger=logging.getLogger(__name__)
+
+def _key(*args):
+    def bindToKey(f):
+        f.keys=list(args)
+        return f
+    return bindToKey
+
+class AbstractLook(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, cursor):
+        self.cursor=cursor
+        self._backup=[None]
+        ctx=Context.getContext()
+
+        look_handler=input_handling.InputHandler()
+        for method in [getattr(self,m) for m in dir(self) if callable(getattr(self,m))]:
+            try:
+                for key in method.keys:
+                    if isinstance(key, tuple):
+                        look_handler.addFunction(method, key[0], key[1])
+                    else:
+                        look_handler.addFunction(method, key)
+                    logger.debug("Bound "+str(method)+" to "+str(key))
+            except AttributeError:
+                pass
+        ctx.screen_manager.current.handlers.push(look_handler)
+
+        self.message_buffer=ctx.message_buffer
+        self.perception=ctx.pc.perception
+        self.loc=ctx.pc.parent.loc
+        self.original_loc=ctx.pc.parent.loc
+        self.previous_loc=ctx.pc.parent.loc
+        self.worldview=ctx.worldview
+        (self.width,self.height)=(self.worldview.width-1,self.worldview.height-1)
+        self.screen_manager=ctx.screen_manager
+        self.ctx=ctx
+        self.monster_index=-1
+        self.len_monsters_keys=len(self.perception.monsters_keys)
+    
+    def _position(self):
+        tile=self.worldview[self.loc]
+        self.backup=tile.image
+        tile.image=self.cursor
+        if abs(self.loc[0]-self.previous_loc[0])>5 or abs(self.loc[1]-self.previous_loc[1])>5:
+            self.worldview.center(self.worldview[self.loc].rect)
+            self.previous_loc=self.loc
+        self.screen_manager.current.view.draw()
+    
+    @abc.abstractmethod
+    def _addMessage(self):
+        pass
+
+    def go(self):
+        self._position()
+        self._addMessage()
+
+    @_key(K_y)
+    def N(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(self.loc[0],max(0,self.loc[1]-1))
+        self.go()
+    
+    @_key(K_k)
+    def NW(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(max(0,self.loc[0]-1),max(0,self.loc[1]-1))
+        self.go()
+
+    @_key(K_n)
+    def S(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(self.loc[0],min(self.height,self.loc[1]+1))
+        self.go()
+
+    @_key(K_u)
+    def W(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(max(0,self.loc[0]-1),self.loc[1])
+        self.go()
+
+    @_key(K_b)
+    def E(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(min(self.width,self.loc[0]+1),self.loc[1])
+        self.go()
+
+    @_key(K_j)
+    def SE(self):
+        self.worldview[self.loc].image=self.backup
+        self.loc=(min(self.width,self.loc[0]+1),min(self.height,self.loc[1]+1))
+        self.go()
+    
+    @_key(K_RIGHTBRACKET, (K_EQUALS, (KMOD_SHIFT,)))
+    def next(self):
+        if self.len_monsters_keys:
+            self.worldview[self.loc].image=self.backup
+            self.monster_index=(self.monster_index+1)%self.len_monsters_keys
+            self.loc=self.perception.monsters_keys[self.monster_index]
+            self.go()
+
+    @_key(K_LEFTBRACKET, K_MINUS)
+    def previous(self):
+        if self.len_monsters_keys:
+            self.worldview[self.loc].image=self.backup
+            self.monster_index=(self.monster_index-1)%self.len_monsters_keys
+            self.loc=self.perception.monsters_keys[self.monster_index]
+            self.go()
+
+    @_key(K_q, K_ESCAPE)
+    def quit(self):
+        self.message_buffer.addMessage('')
+        self.worldview[self.loc].image=self.backup
+        self.worldview.center(self.worldview[self.original_loc].rect)
+        self.screen_manager.current.handlers.pop()
+        self.screen_manager.current.view.draw()
+
+class Examine(AbstractLook):
+    ACTIONS='<Available actions: (jkyubn); e(x)amine, (t)arget, (q)uit mode.>'
+
+    def __init__(self, cursor):
+        super(Examine, self).__init__(cursor)
+
+    def _addMessage(self):
+        items=[contents[1] for contents in self.perception.examineTile(self.loc)]
+        cover=self.perception[self.loc].cover
+        message=Examine.ACTIONS
+        if len(items):
+            if cover<1.0:
+                message+='\nYou see here '
+            else:
+                message+='\nYou remember seeing '
+            message+=', '.join(items)+'.'
+        if globals.wizard_mode:
+            message+='\n[cover: '+str(self.perception[self.loc].cover)+']'
+        self.message_buffer.addMessage(message)
+    
+    @_key(K_x)
+    def examine(self):
+        message=Examine.ACTIONS
+        items=[contents[2] for contents in self.perception.examineTile(self.loc)]
+        if len(items):
+            message+='\n'+'\n'.join(items)
+        self.message_buffer.addMessage(message)
+    
+    @_key(K_t)
+    def target(self):
+        self.message_buffer.addMessage('<TODO>')
 
 def lookMode():
-    def look():
-        tile=worldview[loc[0]]
-        backup[0]=tile.image
-        tile.image=cursor
-        if abs(loc[0][0]-previous_loc[0][0])>5 or abs(loc[0][1]-previous_loc[0][1])>5:
-            worldview.center(worldview[loc[0]].rect)
-            previous_loc[0]=loc[0]
-        screen_manager.current.view.draw()
-        message='\n'.join([contents[2] for contents in perception.examineTile(loc[0])])
-        if globals.wizard_mode:
-            message+='\n[cover: '+str(perception[loc[0]].cover)+']'
-        message_buffer.addMessage(message)
-    
-    def quitLook():
-        worldview[loc[0]].image=backup[0]
-        worldview.center(worldview[original_loc].rect)
-        screen_manager.current.handlers.pop()
-        screen_manager.current.view.draw()
-    
-    def N():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(loc[0][0],max(0,loc[0][1]-1))
-        look()
-    
-    def NW():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(max(0,loc[0][0]-1),max(0,loc[0][1]-1))
-        look()
+    look=Examine(globals.font.render('X',True,(255,255,100)))
 
-    def S():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(loc[0][0],min(height,loc[0][1]+1))
-        look()
-
-    def W():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(max(0,loc[0][0]-1),loc[0][1])
-        look()
-
-    def E():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(min(width,loc[0][0]+1),loc[0][1])
-        look()
-
-    def SE():
-        worldview[loc[0]].image=backup[0]
-        loc[0]=(min(width,loc[0][0]+1),min(height,loc[0][1]+1))
-        look()
-
-    ctx=Context.getContext()
-
-    look_handler=input_handling.InputHandler()
-    look_handler.addFunction(SE, K_j)
-    look_handler.addFunction(NW, K_k)
-    look_handler.addFunction(N, K_y)
-    look_handler.addFunction(W, K_u)
-    look_handler.addFunction(E, K_b)
-    look_handler.addFunction(S, K_n)
-    look_handler.addFunction(quitLook, K_q)
-    look_handler.addFunction(quitLook, K_ESCAPE)
-    ctx.screen_manager.current.handlers.push(look_handler)
-
-    backup=[None]
-    cursor=globals.font.render('X',True,(255,255,100))
-    message_buffer=ctx.message_buffer
-    perception=ctx.pc.perception
-    loc=[ctx.pc.parent.loc]
-    original_loc=ctx.pc.parent.loc
-    previous_loc=[ctx.pc.parent.loc]
-    worldview=ctx.worldview
-    (width,height)=(worldview.width-1,worldview.height-1)
-    screen_manager=ctx.screen_manager
-
-    look()
+    look.go()

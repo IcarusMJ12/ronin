@@ -19,10 +19,15 @@ class Actor(lie.objects.Actor):
 class Human(Actor):
     def __init__(self):
         super(Human, self).__init__()
+        self.short_description='a human'
         self.symbol='@'
 
 class PC(Human):
     """A samurai, armed with a katana and a yumi."""
+    def __init__(self):
+        super(PC, self).__init__()
+        self.short_description='a rugged samurai'
+
     def moveBlocked(self,tile):
         ctx=Context.getContext()
         if(tile.actor and isinstance(tile.actor,Oni)):
@@ -43,6 +48,7 @@ class Oni(Actor):
     """An ugly, fanged humanoid with a mean disposition, wielding a tetsubo."""
     def __init__(self):
         super(Oni, self).__init__()
+        self.short_description='an oni'
         self.symbol='o'
     
     def moveBlocked(self,tile):
