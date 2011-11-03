@@ -7,6 +7,7 @@ from lie.context import Context as Context
 import logging
 from lie.input_handling import InputHandler
 import lie.objects
+from lie.objects import State
 
 __all__=['PC', 'Oni']
 
@@ -50,6 +51,8 @@ class Oni(Actor):
         super(Oni, self).__init__()
         self.short_description='an oni'
         self.symbol='o'
+        #self.state=State.Unaware
+        self.state=State.Hostile
     
     def moveBlocked(self,tile):
         ctx=Context.getContext()

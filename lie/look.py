@@ -131,7 +131,7 @@ class AbstractLook(object):
         self.screen_manager.current.view.draw()
 
 class Examine(AbstractLook):
-    ACTIONS='<Available actions: (jkyubn); e(x)amine, (t)arget, (q)uit mode.>'
+    ACTIONS='<Available actions: (jkyubn[]+-); e(x)amine, (t)arget, (q)uit.>'
 
     def __init__(self, cursor):
         super(Examine, self).__init__(cursor)

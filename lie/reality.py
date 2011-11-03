@@ -6,7 +6,7 @@ from objects import *
 from exceptions import NotImplementedError
 import logging
 
-HEX_NEIGHBORS=((1,1),(-1,-1),(0,-1),(-1,0),(1,0),(0,1))
+HEX_NEIGHBORS=((1,0),(1,1),(0,1),(-1,0),(-1,-1),(0,-1))
 SQUARE_NEIGHBORS=((1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1))
 
 class Tile(object):

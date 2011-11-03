@@ -2,25 +2,30 @@
 # Licensed under the Open Software License version 3.0.
 
 import abc
-import globals
+from numpy import array as ar
 import math
 import logging
 import pygame
 from pygame.rect import Rect
+from copy import copy
+
+import globals
 from reality import Grid
+from objects import State, Actor
+from lie.reality import HEX_NEIGHBORS
 
 logger=logging.getLogger(__name__)
 
-def computeTileColor(ptile):
-    gray=globals.darkest_gray
-    g=1.0
-    r=ptile.cover
-    if r==1:
-        return(gray*255,gray*255,gray*255)
-    b=1.0
-    if ptile.d2:
-        b=(1.0/math.pow(ptile.d2,0.25))
-    return (r*255,g*255,b*255)
+STATE_HUE_MAP={
+        State.Friendly: ar((-0.2,0.4,-0.2)),
+        State.Neutral: ar((-0.2,-0.2,0.4)),
+        State.Unaware: ar((0.4,0.4,0.4)),
+        State.Alert: ar((0.4,0.4,-0.2)),
+        State.Hostile: ar((0.4,-0.2,-0.2))
+        }
+
+MAX_COLOR=ar((1.0,1.0,1.0))
+MIN_COLOR=ar((0.0,0.0,0.0))
 
 class RenderableTile(pygame.sprite.DirtySprite):
     __metaclass__ = abc.ABCMeta
@@ -58,6 +63,7 @@ class PseudoHexTile(RenderableTile):
     def __init__(self, loc):
         super(PseudoHexTile, self).__init__(loc)
         self.rect=pygame.sprite.Rect(((loc[1]-loc[0])*(globals.cell_width+int(globals.cell_width*globals.scale_horizontally*0.75)), (loc[1]+loc[0])*globals.cell_height/2),(globals.cell_width,globals.cell_height))
+        self.hue=ar((0.0,0.0,0.0))
 
 class GridView(pygame.sprite.RenderUpdates):
     __metaclass__ = abc.ABCMeta
@@ -84,10 +90,34 @@ class GridView(pygame.sprite.RenderUpdates):
     
     def draw(self):
         self.clear(self.viewport, globals.background)
-        dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
+        #dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
+        dirties=[(i,j) for j in xrange(self.height) for i in xrange(self.width)]
+        gray=globals.darkest_gray
+        gray=ar((gray,gray,gray))
+        white=0.6
+        white=ar((white,white,white))
+        npcs=[]
+        for loc in dirties:
+            if self.perception[loc].cover==1.0:
+                self[loc].hue=copy(gray)
+            else:
+                self[loc].hue=copy(white)
+                obj=self.perception[loc].top()
+                if isinstance(obj, Actor) and obj!=self.perception.actor:
+                    npcs.append((ar(loc), obj.facing, STATE_HUE_MAP[obj.state]))
+        for loc, facing, hue in npcs:
+            print loc, facing, hue
+            index=HEX_NEIGHBORS.index(facing)
+            self[tuple(loc+facing)].hue+=hue
+            self[tuple(loc+HEX_NEIGHBORS[index-1])].hue+=hue/2
+            try:
+                self[tuple(loc+HEX_NEIGHBORS[index+1])].hue+=hue/2
+            except IndexError:
+                self[tuple(loc+HEX_NEIGHBORS[0])].hue+=hue/2
         for loc in dirties:
             try:
-                self[loc].image=globals.font.render(self.perception[loc].top().symbol,True,computeTileColor(self.perception[loc]))
+                element=self.perception[loc].top()
+                self[loc].image=globals.font.render(element.symbol,True,ar(map(max,map(min, self[loc].hue, MAX_COLOR), MIN_COLOR))*element.hue*(255,255,255))
             except AttributeError:
                 pass
         pygame.display.update(super(GridView, self).draw(self.viewport))

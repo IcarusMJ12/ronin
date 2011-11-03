@@ -7,7 +7,10 @@ import logging
 import math
 from exceptions import NotImplementedError
 
-__all__=['Actor', 'Floor', 'Terrain', 'Wall']
+__all__=['Actor', 'Floor', 'Terrain', 'Wall', 'State']
+
+class State:
+    Friendly, Neutral, Unaware, Alert, Hostile = range(5)
 
 class BaseObject(object):
     """All in-game objects should derive from this or one of its children."""
@@ -18,6 +21,8 @@ class BaseObject(object):
         self.blocks_los=False
         self.long_description=self.__doc__
         self.short_description=self.__doc__
+        self.symbol=' '
+        self.hue=(1.0,1.0,1.0)
     
     def getLongDescription(self, visibility=None):
         """Returns docstring by default.  You should probably override this."""
@@ -69,6 +74,7 @@ class Actor(BaseObject):
         self.short_description='an actor'
         self.perception=None
         self.facing=(0,0)
+        self.state=State.Friendly
 
     def moveToTile(self, tile):
         if(tile.isPassableBy(self)):

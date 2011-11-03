@@ -3,7 +3,7 @@
 #This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ or send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
 
 import logging
-from random import Random
+from random import Random, choice
 import sys
 import time
 import pygame
@@ -18,6 +18,7 @@ import lie.globals
 from lie.context import Context as Context
 from objects import *
 from lie.look import lookMode
+from lie.reality import HEX_NEIGHBORS
 #import profile
 
 #import psyco
@@ -183,9 +184,11 @@ if __name__ == '__main__':
                     try:
                         tile=ctx.world[i+1,j+1]
                         tile.actor=Oni()
+                        tile.actor.facing=choice(HEX_NEIGHBORS)
+                        tile.actor.hue=choice(((1.0,1.0,1.0),(1.0,0.5,0.5),(0.5,0.5,1.0),(0.5,1.0,0.5)))
                         tile.actor.parent=tile
                         ctx.enemies.append(tile.actor)
-                    except:
+                    except AssertionError:
                         pass
         #setup turn manager
         player_turn=turns.TurnPhase(player_phase)
