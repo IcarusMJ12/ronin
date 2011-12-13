@@ -53,7 +53,7 @@ def rayPairFromFF(facing, fov):
     #left, right = (rotate_left*matrix(left[0]).transpose(), rotate_left*matrix(left[1]).transpose()),(rotate_right*matrix(right[0]).transpose(), rotate_right*matrix(right[1]).transpose())
     left, right = (left[0], rotate_left*matrix(left[1]).transpose()),(right[0], rotate_right*matrix(right[1]).transpose())
     #left, right = (ar(left[0].transpose())[0], ar(left[1].transpose())[0]), (ar(right[0].transpose())[0],ar(right[1].transpose())[0])
-    left, right = (left[0], ar(left[1].transpose())[0]), (right[0],ar(right[1].transpose())[0])
+    left, right = ar((left[0], ar(left[1].transpose())[0])), ar((right[0],ar(right[1].transpose())[0]))
     logger.debug("left:"+str(left)+" right:"+str(right))
     rp=RayPair(None, None, reflex)
     (rp._left, rp._right)=(left, right)

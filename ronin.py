@@ -76,7 +76,9 @@ def load():
 def player_pre():
     ctx=Context.getContext()
     ctx.message_buffer.is_read=True
+    now=time.time()
     ctx.pc.perception.calculateFOV()
+    logger.warn('Elapsed: '+str(time.time()-now))
     ctx.worldview.draw()
 
 def player_phase():
@@ -103,6 +105,7 @@ def player_post():
 def enemies_phase():
     ctx=Context.getContext()
     for enemy in ctx.enemies:
+        #enemy.perception.calculateFOV()
         enemy.act()
     return True
 
@@ -187,6 +190,8 @@ if __name__ == '__main__':
                         tile.actor.facing=choice(HEX_NEIGHBORS)
                         tile.actor.hue=choice(((1.0,1.0,1.0),(1.0,0.5,0.5),(0.5,0.5,1.0),(0.5,1.0,0.5)))
                         tile.actor.parent=tile
+                        tile.actor.perception=PGrid(ctx.world, tile.actor)
+                        #tile.actor.perception.calculateFOV()
                         ctx.enemies.append(tile.actor)
                     except AssertionError:
                         pass
