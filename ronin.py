@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#Copyright (c) 2011 Igor Kaplounenko
+#Copyright (c) 2011-2012 Igor Kaplounenko
 #This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/3.0/ or send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
 
 import logging
@@ -188,7 +188,8 @@ if __name__ == '__main__':
                         tile=ctx.world[i+1,j+1]
                         tile.actor=Oni()
                         tile.actor.facing=choice(HEX_NEIGHBORS)
-                        tile.actor.hue=choice(((1.0,1.0,1.0),(1.0,0.5,0.5),(0.5,0.5,1.0),(0.5,1.0,0.5)))
+                        #tile.actor.hue=choice(((1.0,1.0,1.0),(1.0,0.5,0.5),(0.5,0.5,1.0),(0.5,1.0,0.5)))
+                        tile.actor.hue=(1.0,1.0,1.0)
                         tile.actor.parent=tile
                         tile.actor.perception=PGrid(ctx.world, tile.actor)
                         #tile.actor.perception.calculateFOV()

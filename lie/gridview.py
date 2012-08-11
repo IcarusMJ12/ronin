@@ -90,8 +90,8 @@ class GridView(pygame.sprite.RenderUpdates):
     
     def draw(self):
         self.clear(self.viewport, globals.background)
-        #dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
-        dirties=[(i,j) for j in xrange(self.height) for i in xrange(self.width)]
+        dirties=set(self.level.getDirtyLocations()).union(self.perception.getDirtyLocations())
+        #dirties=[(i,j) for j in xrange(self.height) for i in xrange(self.width)]
         gray=globals.darkest_gray
         gray=ar((gray,gray,gray))
         white=0.6
@@ -105,6 +105,7 @@ class GridView(pygame.sprite.RenderUpdates):
                 obj=self.perception[loc].top()
                 if isinstance(obj, Actor) and obj!=self.perception.actor:
                     npcs.append((ar(loc), obj.facing, STATE_HUE_MAP[obj.state]))
+        """
         for loc, facing, hue in npcs:
             print loc, facing, hue
             index=HEX_NEIGHBORS.index(facing)
@@ -114,6 +115,7 @@ class GridView(pygame.sprite.RenderUpdates):
                 self[tuple(loc+HEX_NEIGHBORS[index+1])].hue+=hue/2
             except IndexError:
                 self[tuple(loc+HEX_NEIGHBORS[0])].hue+=hue/2
+        """
         for loc in dirties:
             try:
                 element=self.perception[loc].top()
