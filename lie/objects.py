@@ -1,11 +1,14 @@
-# Copyright (c) 2011 Igor Kaplounenko.
+# Copyright (c) 2011-2012 Igor Kaplounenko.
 # Licensed under the Open Software License version 3.0.
 
 import abc
 import copy
 import logging
 import math
+from numpy import array as ar
 from exceptions import NotImplementedError
+
+from lie import globals
 
 __all__=['Actor', 'Floor', 'Terrain', 'Wall', 'State']
 
@@ -22,7 +25,7 @@ class BaseObject(object):
         self.long_description=self.__doc__
         self.short_description=self.__doc__
         self.symbol=' '
-        self.hue=(1.0,1.0,1.0)
+        self.hue=ar((1.0,1.0,1.0))
     
     def getLongDescription(self, visibility=None):
         """Returns docstring by default.  You should probably override this."""
@@ -31,6 +34,9 @@ class BaseObject(object):
     def getShortDescription(self, visibility=None):
         """Returns docstring by default.  You should probably override this."""
         return self.short_description or ''
+
+    def render(self, hue = (255, 255, 255)):
+        return globals.font.render(self.symbol, True, self.hue * hue)
 
 class Terrain(BaseObject):
     """A terrain feature."""

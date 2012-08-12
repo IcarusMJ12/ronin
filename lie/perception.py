@@ -1,4 +1,4 @@
-# Copyright (c) 2011 Igor Kaplounenko.
+# Copyright (c) 2011-2012 Igor Kaplounenko.
 # Licensed under the Open Software License version 3.0.
 
 import logging
@@ -11,6 +11,16 @@ from math import pi, sin
 logger=logging.getLogger(__name__)
 
 PI_2 = pi*2
+
+class Memory(object):
+    __slots__ = ['obj', 'facing']
+
+    def __init__(self, obj):
+        self.obj = obj
+        try:
+            self.facing = obj.facing
+        except AttributeError:
+            self.facing = None
 
 class PTile(object):
     def __init__(self, tile):
@@ -51,7 +61,7 @@ class PTile(object):
             return None
         if self.cover==1:
             return self.memory
-        self.memory=self.tile.top()
+        self.memory = Memory(self.tile.top())
         return self.memory
 
 class PGrid(Grid):
@@ -83,8 +93,8 @@ class PGrid(Grid):
         self.monsters=dict([(tile.tile.loc,tile.top()) for tile in self.tiles if tile.cover<1 and isinstance(tile.top(), Actor) and tile.top()!=self.actor])
         visible_actors=set(self.monsters.values())
         for tile in self.tiles:
-            if tile.cover==1 and tile.memory in visible_actors:
-                tile.memory=tile.tile.terrain
+            if tile.cover==1 and tile.memory and tile.memory.obj in visible_actors:
+                tile.memory = Memory(tile.tile.terrain)
         self.monsters_keys=sorted(self.monsters.keys(), key=lambda x: pow(x[0]-me[0],2)+pow(x[1]-me[1],2)-(x[0]-me[0])*(x[1]-me[1]))
         logger.debug('me:'+str(self.actor.parent.loc)+' them:'+str(self.monsters_keys))
     
@@ -93,7 +103,7 @@ class PGrid(Grid):
         if self[loc].cover==1:
             objects=[]
             if self[loc].memory:
-                objects.append(self[loc].memory)
+                objects.append(self[loc].memory.obj)
             if self[loc].was_seen:
                 terrain=self[loc].tile.terrain
                 if terrain not in objects:

@@ -1,4 +1,4 @@
-# Copyright (c) 2011 Igor Kaplounenko.
+# Copyright (c) 2011-2012 Igor Kaplounenko.
 # Licensed under the Open Software License version 3.0.
 
 import abc
@@ -7,25 +7,27 @@ import math
 import logging
 import pygame
 from pygame.rect import Rect
+from pygame import draw
 from copy import copy
 
 import globals
 from reality import Grid
 from objects import State, Actor
 from lie.reality import HEX_NEIGHBORS
+from lie.context import Context as Context
 
 logger=logging.getLogger(__name__)
 
-STATE_HUE_MAP={
-        State.Friendly: ar((-0.2,0.4,-0.2)),
-        State.Neutral: ar((-0.2,-0.2,0.4)),
-        State.Unaware: ar((0.4,0.4,0.4)),
-        State.Alert: ar((0.4,0.4,-0.2)),
-        State.Hostile: ar((0.4,-0.2,-0.2))
-        }
-
 MAX_COLOR=ar((1.0,1.0,1.0))
 MIN_COLOR=ar((0.0,0.0,0.0))
+
+STATE_HUE_MAP={
+        State.Friendly: ar((0.2,1.0,0.2))*(255,255,255),
+        State.Neutral: ar((0.2,0.2,1.0))*(255,255,255),
+        State.Unaware: ar((1.0,1.0,1.0))*(255,255,255),
+        State.Alert: ar((1.0,1.0,0.2))*(255,255,255),
+        State.Hostile: ar((1.0,0.2,0.2))*(255,255,255)
+        }
 
 class RenderableTile(pygame.sprite.DirtySprite):
     __metaclass__ = abc.ABCMeta
@@ -75,6 +77,7 @@ class GridView(pygame.sprite.RenderUpdates):
         self._sprites=[]
         (self.x,self.y)=(self.viewport.get_width()/2,self.viewport.get_height()/2)
         logger.debug(str(self.x)+' '+str(self.y))
+        self.ctx = Context.getContext()
         if center:
             self.center(center)
     
@@ -94,7 +97,7 @@ class GridView(pygame.sprite.RenderUpdates):
         #dirties=[(i,j) for j in xrange(self.height) for i in xrange(self.width)]
         gray=globals.darkest_gray
         gray=ar((gray,gray,gray))
-        white=0.6
+        white=1.0
         white=ar((white,white,white))
         npcs=[]
         for loc in dirties:
@@ -102,9 +105,9 @@ class GridView(pygame.sprite.RenderUpdates):
                 self[loc].hue=copy(gray)
             else:
                 self[loc].hue=copy(white)
-                obj=self.perception[loc].top()
-                if isinstance(obj, Actor) and obj!=self.perception.actor:
-                    npcs.append((ar(loc), obj.facing, STATE_HUE_MAP[obj.state]))
+                #obj = self.perception[loc].top().obj if self.perception[loc].top() else None
+                #if isinstance(obj, Actor) and obj!=self.perception.actor:
+                #   npcs.append((ar(loc), obj.facing, STATE_HUE_MAP[obj.state]))
         """
         for loc, facing, hue in npcs:
             print loc, facing, hue
@@ -119,7 +122,18 @@ class GridView(pygame.sprite.RenderUpdates):
         for loc in dirties:
             try:
                 element=self.perception[loc].top()
-                self[loc].image=globals.font.render(element.symbol,True,ar(map(max,map(min, self[loc].hue, MAX_COLOR), MIN_COLOR))*element.hue*(255,255,255))
+                #self[loc].image = globals.font.render(element.symbol,True,ar(map(max,map(min, self[loc].hue, MAX_COLOR), MIN_COLOR))*element.hue*(255,255,255))
+                self[loc].image = element.obj.render(ar(map(max,map(min, self[loc].hue, MAX_COLOR), MIN_COLOR))*(255,255,255))
+                if element.facing and element.obj != self.ctx.pc and (element.facing[0] or element.facing[1]):
+                    h, w = globals.cell_height-1, globals.cell_width-1
+                    pointlist = ()
+                    vertical, horizontal = h*((element.facing[0] or element.facing[1])*0.5+0.5), w*((element.facing[1]-element.facing[0])*0.5+0.5)
+                    print horizontal, w/2.0
+                    if horizontal == w/2.0:
+                        pointlist = ((horizontal-3, vertical-cmp(vertical, 1)*3), (horizontal, vertical), (horizontal+3, vertical-cmp(vertical,1)*3))
+                    else:
+                        pointlist = ((horizontal, vertical-cmp(vertical,1)*3), (horizontal, vertical), (horizontal-cmp(horizontal,1)*3, vertical))
+                    draw.lines(self[loc].image, STATE_HUE_MAP[element.obj.state], False, pointlist, True)
             except AttributeError:
                 pass
         pygame.display.update(super(GridView, self).draw(self.viewport))
